@@ -6,8 +6,8 @@
 set -e
 
 # Configuration
-AWS_REGION="us-east-1"  # Change to your preferred region
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION="us-east-1"  # Your configured region
+AWS_ACCOUNT_ID="834620997253"  # Your AWS Account ID
 STACK_NAME="secureflow-infrastructure"
 CLUSTER_NAME="secureflow-cluster"
 SERVICE_NAME="secureflow-service"
