@@ -1,35 +1,226 @@
-# SecureFlow
+# SecureFlow - Financial Transaction Anomaly Detection
 
-Secure****Non-Technical Analogy**: It's like getting a text from your bank saying, "Hey, this purchase looks weird—check it now!" so you can stop it before more money is taken.
+SecureFlow is a full-stack web application for real-time financial transaction anomaly detection, targeting 95% recall and <3-second latency, addressing the $40B financial scam problem in 2025.
 
-**Intended Use Case**: For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.echnical Analogy**: It's like getting a text from your bank saying, "Hey, this purchase looks weird—check it now!" so you can stop it before more money is taken.
+## 🎯 Overview
 
-**Intended Use Case**:For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.is a full-stack web application for real-time financial transaction anomaly detection, targeting 95% recall and <3-second latency, addressing the $40B financial scam problem in 2025
+SecureFlow is designed to detect suspicious financial transactions using machine learning, providing:
+- **Real-time anomaly detection** with Isolation Forest model
+- **SHAP explanations** for model interpretability  
+- **Interactive web interface** for single and batch transaction analysis
+- **Dashboard analytics** with visualizations
+- **User feedback system** for continuous model improvement
 
-SecureFlow is designed to detect suspicious financial transactions (e.g., credit card fraud) in real-time, flagging potential scams with high accuracy (95% recall, <3s latency) using an Isolation Forest or Autoencoder model, with SHAP explanations. While the app’s interface allows manual user input (single transactions or CSV batches) for analysis, its primary use case is to assist banks, financial institutions, or users in identifying and responding to fraud quickly, reducing the impact of scams. 
+## 🚀 Quick Start
 
-Here’s how it addresses scam prevention, even with post-transaction input:
-**Real-Time Detection for Recent Transactions**:
-  How It Works: Users (or bank systems) input transaction details (e.g., $1,000 at 2 AM) via the React front end (Home or Batch Upload routes). The Flask API invokes the SageMaker-hosted model, which predicts if the transaction is suspicious (anomaly) in <3 seconds, providing SHAP explanations (e.g., “Flagged due to high amount at unusual time”).
-  **Prevention Aspect**: Many financial scams (e.g., unauthorized credit card charges) can be reversed if caught quickly (within hours or days). SecureFlow’s fast detection (<3s) allows banks to flag and freeze suspicious transactions before funds are fully transferred or withdrawn, preventing losses. For example, a user noticing a strange charge can input it and get an immediate alert to contact their bank.
-**Non-Technical Analogy**: It’s like a security guard who checks your bank statement right after a purchase and yells, “Stop! That looks fishy!” so you can call the bank to cancel it before the scammer gets away.
+### Local Development
 
-**Batch Processing for Monitoring**:
-  How It Works: The Batch Upload route allows users (or banks) to upload a CSV of multiple transactions (e.g., 10–100 records), which SecureFlow processes to identify patterns of fraud. Results are displayed in a table with explanations, and alerts (via SNS email/SMS) are triggered for high-risk transactions (>90% anomaly probability).
-  Prevention Aspect: Banks can use batch processing to monitor recent transactions in bulk (e.g., daily customer activity), catching scams that might have slipped through initial checks. This proactive monitoring helps stop fraudulent patterns before further transactions occur, reducing financial loss.
-  Example: A bank uploads a day’s transactions, SecureFlow flags 5 suspicious ones, and the bank freezes those accounts within minutes.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/KaushikTechWorks/SecureFlow.git
+   cd SecureFlow
+   ```
 
-**Feedback and Alerts for Proactive Response**:
-  How It Works: The Feedback/Alerts route lets users confirm if flagged transactions are correct (stored in S3/RDS for model improvement) and set custom alert thresholds (e.g., >90% probability triggers SNS notifications). The Dashboard visualizes trends (e.g., anomaly frequency) with Chart.js.
-  Prevention Aspect: Alerts notify users or banks instantly via email/SMS, enabling rapid action (e.g., freezing a card, contacting the user). Feedback improves the model over time, making future detections more accurate and preventing scams earlier.
-**Non-Technical Analogy**: It’s like getting a text from your bank saying, “Hey, this purchase looks weird—check it now!” so you can stop it before more money is taken.
+2. **Start the backend**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   python start_server.py
+   ```
 
-Sample commit. remove later
+3. **Start the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
 
-**Intended Use Case**:For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.
-For Banks: The app integrates with banking systems (via API) to process transactions in near real-time, flagging anomalies during or immediately after processing, preventing fraudulent transfers from completing.
-Technical Note: The Flask API’s low-latency design (<3s, optimized with SageMaker Neo) supports near-real-time analysis, suitable for bank integration where transactions are checked as they occur.
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5001
 
+### Docker Deployment
 
+```bash
+docker-compose up --build
+```
 
+### AWS ECS Deployment
 
+For production deployment on AWS using Docker containers:
+
+```bash
+# Quick deployment
+chmod +x scripts/deploy-to-aws.sh
+./scripts/deploy-to-aws.sh
+```
+
+📖 **Detailed AWS deployment guide**: [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md)
+
+## 🏗️ Architecture
+
+```
+Frontend (React/TypeScript) → Backend (Flask/Python) → ML Model (Isolation Forest)
+         ↓                           ↓                        ↓
+    Material-UI Interface      REST API + SHAP           SQLite Database
+```
+
+### AWS Production Architecture
+```
+Internet → ALB → ECS Fargate Service
+                ├── Frontend Container (nginx:80)
+                └── Backend Container (python:5001)
+```
+
+## 📋 Features
+
+### Core Features
+- **Single Transaction Analysis**: Input transaction details and get instant anomaly detection
+- **Batch Processing**: Upload CSV files for bulk transaction analysis
+- **Real-time Dashboard**: View analytics, charts, and transaction statistics
+- **Model Feedback**: Provide feedback to improve model accuracy
+
+### Technical Features
+- **ML Model**: Isolation Forest with SHAP explanations
+- **API Performance**: <3 second response time
+- **Database**: SQLite for development, scalable to PostgreSQL/RDS
+- **Containerization**: Docker support for easy deployment
+- **Cloud Ready**: AWS ECS deployment with infrastructure as code
+
+## 🎯 Use Cases
+
+### For Users
+- Verify suspicious transactions quickly
+- Get explanations for why transactions are flagged
+- Report potential fraud to banks with confidence
+
+### For Financial Institutions  
+- Monitor transactions in real-time
+- Reduce false positives with explainable AI
+- Integrate with existing fraud detection systems
+
+## 🛠️ Technology Stack
+
+**Frontend:**
+- React 18 with TypeScript
+- Material-UI for modern interface
+- Chart.js for data visualization
+- Axios for API communication
+
+**Backend:**
+- Flask with Python 3.11
+- Scikit-learn for ML models
+- SHAP for model explanations
+- SQLite/PostgreSQL database
+
+**DevOps:**
+- Docker & Docker Compose
+- AWS ECS (Fargate)
+- CloudFormation for infrastructure
+- ECR for container registry
+
+## 📊 Model Performance
+
+- **Accuracy**: 95%+ recall rate
+- **Latency**: <3 second response time
+- **Explainability**: SHAP values for each prediction
+- **Features**: Amount, time, merchant category, transaction type, day of week
+
+## 🔧 Configuration
+
+### Environment Variables
+
+**Development (.env.local):**
+```
+REACT_APP_API_URL=http://localhost:5001
+```
+
+**Production (.env.production):**
+```
+REACT_APP_API_URL=https://your-production-api-url
+REACT_APP_ENV=production
+```
+
+## 📈 Monitoring
+
+- **CloudWatch Logs**: Application and container logs
+- **Health Checks**: Built-in health endpoints
+- **Metrics**: Transaction volume, anomaly rates, response times
+
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+python -m pytest
+
+# Frontend tests  
+cd frontend
+npm test
+
+# Integration tests
+docker-compose -f docker-compose.test.yml up
+```
+
+## 🚢 Deployment Options
+
+1. **Local Development**: Direct Python/Node.js execution
+2. **Docker Compose**: Local containerized environment
+3. **AWS ECS**: Production-ready cloud deployment
+4. **Kubernetes**: Alternative container orchestration (config available)
+
+## 🔒 Security
+
+- CORS configured for cross-origin requests
+- Input validation on all endpoints
+- Health checks for container monitoring
+- Security groups and VPC isolation in AWS
+
+## 📝 API Documentation
+
+### Core Endpoints
+
+- `GET /api/health` - Health check
+- `POST /api/predict` - Single transaction prediction
+- `POST /api/predict-batch` - Batch transaction processing
+- `GET /api/dashboard` - Analytics data
+- `POST /api/feedback` - Submit model feedback
+
+### Example Request
+
+```bash
+curl -X POST http://localhost:5001/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 1500.00,
+    "hour": 3,
+    "day_of_week": 2,
+    "merchant_category": 1,
+    "transaction_type": 0
+  }'
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📧 Support
+
+For questions and support:
+- Create an issue in this repository
+- Review the [AWS deployment guide](AWS_DEPLOYMENT.md)
+- Check the troubleshooting section in documentation
+
+---
+
+**Note**: This application is for educational and demonstration purposes. For production use in financial institutions, additional security measures, compliance checks, and thorough testing are required.
