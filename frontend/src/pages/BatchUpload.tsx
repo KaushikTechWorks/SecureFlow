@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { CloudUpload, Download } from '@mui/icons-material';
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 interface BatchResult {
   index: number;
@@ -96,7 +97,7 @@ const BatchUpload: React.FC = () => {
       const csvText = await file.text();
       const transactions = parseCSV(csvText);
       
-      const response = await axios.post('http://localhost:5001/api/predict-batch', {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.PREDICT_BATCH, {
         transactions
       });
       

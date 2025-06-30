@@ -22,6 +22,7 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { TrendingUp, Security, Assessment, Feedback } from '@mui/icons-material';
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 ChartJS.register(
   CategoryScale,
@@ -70,7 +71,7 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5001/api/dashboard');
+      const response = await axios.get(API_CONFIG.ENDPOINTS.DASHBOARD);
       setData(response.data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch dashboard data');

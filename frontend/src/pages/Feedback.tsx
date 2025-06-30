@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Feedback as FeedbackIcon, Send, ThumbUp, ThumbDown } from '@mui/icons-material';
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 interface FeedbackForm {
   transaction_id: string;
@@ -62,7 +63,7 @@ const Feedback: React.FC = () => {
         comments: formData.comments || undefined,
       };
 
-      const response = await axios.post('http://localhost:5001/api/feedback', submission);
+      const response = await axios.post(API_CONFIG.ENDPOINTS.FEEDBACK, submission);
       console.log('Feedback submitted successfully:', response.data);
       
       setSuccess('Thank you for your feedback! This helps improve our model accuracy.');

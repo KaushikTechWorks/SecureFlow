@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { TrendingUp, TrendingDown, Security, Speed } from '@mui/icons-material';
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 interface PredictionResult {
   transaction_id: number;
@@ -67,7 +68,7 @@ const Home: React.FC = () => {
         transaction_type: parseInt(formData.transaction_type),
       };
 
-      const response = await axios.post('http://localhost:5001/api/predict', payload);
+      const response = await axios.post(API_CONFIG.ENDPOINTS.PREDICT, payload);
       setResult(response.data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'An error occurred while processing the transaction');
