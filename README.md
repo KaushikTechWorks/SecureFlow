@@ -1,6 +1,10 @@
 # SecureFlow
 
-SecureFlow is a full-stack web application for real-time financial transaction anomaly detection, targeting 95% recall and <3-second latency, addressing the $40B financial scam problem in 2025
+Secure****Non-Technical Analogy**: It's like getting a text from your bank saying, "Hey, this purchase looks weird—check it now!" so you can stop it before more money is taken.
+
+**Intended Use Case**: For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.echnical Analogy**: It's like getting a text from your bank saying, "Hey, this purchase looks weird—check it now!" so you can stop it before more money is taken.
+
+**Intended Use Case**:For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.is a full-stack web application for real-time financial transaction anomaly detection, targeting 95% recall and <3-second latency, addressing the $40B financial scam problem in 2025
 
 SecureFlow is designed to detect suspicious financial transactions (e.g., credit card fraud) in real-time, flagging potential scams with high accuracy (95% recall, <3s latency) using an Isolation Forest or Autoencoder model, with SHAP explanations. While the app’s interface allows manual user input (single transactions or CSV batches) for analysis, its primary use case is to assist banks, financial institutions, or users in identifying and responding to fraud quickly, reducing the impact of scams. 
 
@@ -19,6 +23,8 @@ Here’s how it addresses scam prevention, even with post-transaction input:
   How It Works: The Feedback/Alerts route lets users confirm if flagged transactions are correct (stored in S3/RDS for model improvement) and set custom alert thresholds (e.g., >90% probability triggers SNS notifications). The Dashboard visualizes trends (e.g., anomaly frequency) with Chart.js.
   Prevention Aspect: Alerts notify users or banks instantly via email/SMS, enabling rapid action (e.g., freezing a card, contacting the user). Feedback improves the model over time, making future detections more accurate and preventing scams earlier.
 **Non-Technical Analogy**: It’s like getting a text from your bank saying, “Hey, this purchase looks weird—check it now!” so you can stop it before more money is taken.
+
+Sample commit. remove later
 
 **Intended Use Case**:For Users: SecureFlow acts as a verification tool for individuals checking recent transactions (e.g., after noticing a charge). By flagging scams quickly, it empowers users to report issues to their bank before funds are lost.
 For Banks: The app integrates with banking systems (via API) to process transactions in near real-time, flagging anomalies during or immediately after processing, preventing fraudulent transfers from completing.
