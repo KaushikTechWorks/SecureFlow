@@ -52,8 +52,11 @@ fi
 # Create user data script for EC2 instance
 cat > user-data.sh << 'EOF'
 #!/bin/bash
+exec > >(tee /var/log/user-data.log) 2>&1  # Log all output
+echo "Starting user data script at $(date)"
+
 yum update -y
-yum install -y docker git
+yum install -y docker git nginx
 
 # Start Docker
 systemctl start docker
@@ -66,27 +69,51 @@ chmod +x /usr/local/bin/docker-compose
 
 # Clone repository
 cd /home/ec2-user
+echo "Cloning repository..."
 git clone https://github.com/KaushikTechWorks/SecureFlow.git
+chown -R ec2-user:ec2-user SecureFlow
 cd SecureFlow
 
+# Wait for Docker to be fully ready
+sleep 10
+
 # Build and run the application
+echo "Starting Docker Compose..."
 docker-compose up -d
+
+# Wait for services to start
+sleep 30
 
 # Create a simple nginx proxy to handle port 80
 cat > /etc/nginx/nginx.conf << 'NGINX_EOF'
 events {}
 http {
+    upstream frontend {
+        server 127.0.0.1:8080;
+    }
+    
     upstream backend {
-        server localhost:5001;
+        server 127.0.0.1:5001;
     }
     
     server {
         listen 80;
-        location / {
-            proxy_pass http://localhost/;
-        }
+        server_name _;
+        
         location /api/ {
-            proxy_pass http://backend/;
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        location / {
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
 }
@@ -95,6 +122,8 @@ NGINX_EOF
 # Start nginx
 systemctl start nginx
 systemctl enable nginx
+
+echo "User data script completed at $(date)"
 EOF
 
 # Get the latest Amazon Linux 2 AMI
