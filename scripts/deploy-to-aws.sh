@@ -63,7 +63,7 @@ SECURITY_GROUP=$(aws cloudformation describe-stacks \
 
 TARGET_GROUP_ARN=$(aws cloudformation describe-stacks \
   --stack-name $STACK_NAME \
-  --query 'Stacks[0].Outputs[?OutputKey==`TargetGroup`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`FrontendTargetGroup`].OutputValue' \
   --output text \
   --region $AWS_REGION)
 

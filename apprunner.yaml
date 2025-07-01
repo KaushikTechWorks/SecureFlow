@@ -1,0 +1,19 @@
+version: 1.0
+runtime: docker
+build:
+  commands:
+    build:
+      - echo "Building application..."
+      - docker build -t secureflow-backend ./backend
+      - docker build -t secureflow-frontend ./frontend
+run:
+  runtime-version: latest
+  command: docker-compose up
+  network:
+    port: 80
+    env: PORT
+  env:
+    - name: PORT
+      value: "80"
+    - name: FLASK_ENV
+      value: "production"

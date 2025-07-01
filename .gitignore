@@ -23,6 +23,13 @@ dist/
 .env.test.local
 .env.production.local
 
+# SSH Keys and sensitive files
+*.pem
+*.key
+
+# AWS generated files  
+aws/ecs-task-definition-updated.json*
+
 # IDE files
 .vscode/
 .idea/
