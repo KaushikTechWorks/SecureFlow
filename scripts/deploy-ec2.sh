@@ -88,6 +88,7 @@ sleep 10
 
 # Build and run the application
 echo "Starting Docker Compose..."
+export API_URL="http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):5001"
 docker-compose up -d
 
 echo "User data script completed at $(date)"
