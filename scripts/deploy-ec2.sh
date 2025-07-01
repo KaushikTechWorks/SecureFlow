@@ -38,10 +38,11 @@ if ! aws ec2 describe-security-groups --group-names $SECURITY_GROUP --region $AW
         --region $AWS_REGION \
         --query 'GroupId' --output text)
     
-    # Allow HTTP, HTTPS, and SSH
+    # Allow HTTP, HTTPS, SSH, and Backend API
     aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $AWS_REGION
     aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $AWS_REGION
     aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $AWS_REGION
+    aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 5001 --cidr 0.0.0.0/0 --region $AWS_REGION
     
     echo "✅ Created security group: $SECURITY_GROUP_ID"
 else
@@ -57,6 +58,14 @@ echo "Starting user data script at $(date)"
 
 yum update -y
 yum install -y docker git
+
+# Add swap space for memory-intensive builds
+echo "Adding swap space..."
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
 
 # Start Docker
 systemctl start docker
@@ -98,7 +107,7 @@ echo "🖥️  Launching EC2 instance with AMI: $AMI_ID"
 INSTANCE_ID=$(aws ec2 run-instances \
     --image-id $AMI_ID \
     --count 1 \
-    --instance-type t3.micro \
+    --instance-type t3.small \
     --key-name $KEY_NAME \
     --security-groups $SECURITY_GROUP \
     --user-data file://user-data.sh \
@@ -122,7 +131,7 @@ echo "🎉 Deployment completed!"
 echo "📱 Your app will be available at: http://$PUBLIC_IP (wait 5-10 minutes for setup)"
 echo "🔑 SSH access: ssh -i ${KEY_NAME}.pem ec2-user@$PUBLIC_IP"
 echo ""
-echo "💰 Cost: ~$8-15/month for t3.micro instance"
+echo "💰 Cost: ~$16-25/month for t3.small instance"
 echo ""
 echo "🗑️  To delete resources later:"
 echo "   aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region $AWS_REGION"
