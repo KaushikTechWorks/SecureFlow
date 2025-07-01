@@ -56,7 +56,7 @@ exec > >(tee /var/log/user-data.log) 2>&1  # Log all output
 echo "Starting user data script at $(date)"
 
 yum update -y
-yum install -y docker git nginx
+yum install -y docker git
 
 # Start Docker
 systemctl start docker
@@ -80,48 +80,6 @@ sleep 10
 # Build and run the application
 echo "Starting Docker Compose..."
 docker-compose up -d
-
-# Wait for services to start
-sleep 30
-
-# Create a simple nginx proxy to handle port 80
-cat > /etc/nginx/nginx.conf << 'NGINX_EOF'
-events {}
-http {
-    upstream frontend {
-        server 127.0.0.1:8080;
-    }
-    
-    upstream backend {
-        server 127.0.0.1:5001;
-    }
-    
-    server {
-        listen 80;
-        server_name _;
-        
-        location /api/ {
-            proxy_pass http://backend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-        
-        location / {
-            proxy_pass http://frontend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-}
-NGINX_EOF
-
-# Start nginx
-systemctl start nginx
-systemctl enable nginx
 
 echo "User data script completed at $(date)"
 EOF
