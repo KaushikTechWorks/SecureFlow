@@ -16,7 +16,10 @@ services:
       start_period: 40s
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: ${API_URL:-http://localhost:5001}
     ports:
       - "80:80"
     depends_on:
