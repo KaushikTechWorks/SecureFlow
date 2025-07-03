@@ -1,0 +1,22 @@
+{
+  "httpMethod": "GET",
+  "path": "/api/health",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": null,
+  "queryStringParameters": null,
+  "pathParameters": null,
+  "requestContext": {
+    "resourcePath": "/api/health",
+    "httpMethod": "GET",
+    "path": "/prod/api/health",
+    "accountId": "123456789012",
+    "apiId": "81qdg9wrm7",
+    "stage": "prod",
+    "requestId": "test-request-id",
+    "identity": {
+      "sourceIp": "127.0.0.1"
+    }
+  }
+}
