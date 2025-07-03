@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -17,6 +18,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { TrendingUp, TrendingDown, Security, Speed } from '@mui/icons-material';
+import SecurityIcon from '@mui/icons-material/Security';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 
@@ -115,68 +117,248 @@ const Home: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom align="center" color="primary">
-        SecureFlow - Transaction Anomaly Detection
-      </Typography>
-      
-      <Typography variant="body1" align="center" sx={{ mb: 4 }} color="text.secondary">
-        Real-time financial transaction fraud detection with 95% accuracy and &lt;3s latency
-      </Typography>
+    <>
+      {/* Hero Section */}
+      <Box 
+        sx={{ 
+          backgroundColor: 'primary.main',
+          color: 'white',
+          pt: 8,
+          pb: 8,
+          mb: 6,
+          backgroundImage: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
+          clipPath: 'polygon(0 0, 100% 0, 100% 85%, 0 100%)'
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center' }}>
+            <Box sx={{ flex: 1, pr: { md: 4 }, mb: { xs: 4, md: 0 } }}>
+              <Typography variant="h2" gutterBottom fontWeight="bold">
+                Secure Your Financial Transactions
+              </Typography>
+              <Typography variant="h5" sx={{ mb: 4, opacity: 0.9 }} fontWeight="normal">
+                Advanced machine learning detection with 95% accuracy and real-time alerts
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button 
+                  variant="contained" 
+                  color="secondary" 
+                  size="large" 
+                  component={RouterLink} 
+                  to="/batch"
+                  sx={{ 
+                    px: 4, 
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    backgroundColor: 'white',
+                    color: 'primary.dark',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                    }
+                  }}
+                >
+                  Try Batch Upload
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="large" 
+                  component={RouterLink} 
+                  to="/dashboard"
+                  sx={{ 
+                    px: 4, 
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    borderColor: 'white',
+                    color: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    }
+                  }}
+                >
+                  View Dashboard
+                </Button>
+              </Box>
+            </Box>
+            <Box sx={{ 
+              flex: 1, 
+              maxWidth: { xs: '100%', md: '50%' }, 
+              display: 'flex', 
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              <Box sx={{
+                width: '100%',
+                maxWidth: 500,
+                height: 300,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: 4,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                boxShadow: '0px 20px 40px rgba(0,0,0,0.2)'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <SecurityIcon sx={{ fontSize: 36, mr: 2 }} />
+                  <Typography variant="h5">Real-time Protection</Typography>
+                </Box>
+                <Box sx={{ 
+                  height: 10, 
+                  width: '100%', 
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  borderRadius: 5,
+                  mb: 3,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <Box sx={{ 
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: '95%',
+                    backgroundColor: 'secondary.main',
+                    borderRadius: 5
+                  }} />
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                  <Typography>Transaction Security Score</Typography>
+                  <Typography fontWeight="bold">95%</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Chip 
+                    icon={<TrendingUp />} 
+                    label="ACTIVE PROTECTION" 
+                    sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.2)', 
+                      color: 'white',
+                      fontWeight: 'bold'
+                    }} 
+                  />
+                  <Typography variant="body2">Last scan: Just now</Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
         {/* Features Overview */}
-        <Box sx={{ width: '100%' }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-              <Card elevation={2}>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Security color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                  <Typography variant="h6">95% Accuracy</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    High precision fraud detection
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-              <Card elevation={2}>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Speed color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                  <Typography variant="h6">&lt;3s Latency</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Real-time analysis
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-              <Card elevation={2}>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <TrendingUp color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                  <Typography variant="h6">SHAP Explanations</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Explainable AI decisions
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-              <Card elevation={2}>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <TrendingDown color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                  <Typography variant="h6">ML-Powered</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Isolation Forest algorithm
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom color="primary">
+            Advanced Fraud Detection Features
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 4, maxWidth: 700, mx: 'auto' }} color="text.secondary">
+            SecureFlow uses state-of-the-art machine learning algorithms to detect and prevent fraudulent transactions in real-time.
+          </Typography>
+        </Box>
+        
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 6 }}>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+              <CardContent sx={{ textAlign: 'center', p: 3 }}>
+                <Box sx={{ 
+                  backgroundColor: 'primary.light', 
+                  borderRadius: '50%', 
+                  width: 80, 
+                  height: 80, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Security sx={{ fontSize: 40, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" gutterBottom fontWeight="bold">95% Accuracy</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  High precision fraud detection using machine learning to reduce false positives
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+              <CardContent sx={{ textAlign: 'center', p: 3 }}>
+                <Box sx={{ 
+                  backgroundColor: 'secondary.light', 
+                  borderRadius: '50%', 
+                  width: 80, 
+                  height: 80, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Speed sx={{ fontSize: 40, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" gutterBottom fontWeight="bold">Real-time Analysis</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Process transactions in under 3 seconds with our high-performance system
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+              <CardContent sx={{ textAlign: 'center', p: 3 }}>
+                <Box sx={{ 
+                  backgroundColor: 'success.light', 
+                  borderRadius: '50%', 
+                  width: 80, 
+                  height: 80, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <TrendingUp sx={{ fontSize: 40, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" gutterBottom fontWeight="bold">SHAP Explanations</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Transparent AI decisions with detailed factor analysis for each transaction
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+              <CardContent sx={{ textAlign: 'center', p: 3 }}>
+                <Box sx={{ 
+                  backgroundColor: 'error.light', 
+                  borderRadius: '50%', 
+                  width: 80, 
+                  height: 80, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <TrendingDown sx={{ fontSize: 40, color: 'white' }} />
+                </Box>
+                <Typography variant="h6" gutterBottom fontWeight="bold">ML-Powered</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Advanced Isolation Forest and ensemble algorithms for anomaly detection
+                </Typography>
+              </CardContent>
+            </Card>
           </Box>
         </Box>
 
+        <Typography variant="h4" textAlign="center" gutterBottom color="primary" sx={{ mt: 8, mb: 4 }}>
+          Test A Transaction
+        </Typography>
+
         {/* Transaction Input Form */}
-        <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
               Analyze Transaction
@@ -353,6 +535,7 @@ const Home: React.FC = () => {
         </Box>
       </Box>
     </Container>
+    </>
   );
 };
 

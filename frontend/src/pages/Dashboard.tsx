@@ -8,6 +8,7 @@ import {
   CardContent,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -121,25 +122,72 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom color="primary">
-        SecureFlow Dashboard
-      </Typography>
-      
-      <Typography variant="body1" sx={{ mb: 4 }} color="text.secondary">
-        Real-time analytics and insights from transaction anomaly detection (Last 7 days)
-      </Typography>
-
-      {/* Key Metrics */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
-        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Assessment color="primary" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h4" color="primary">
-                {data?.total_transactions || 0}
+    <>
+      {/* Dashboard Header */}
+      <Box 
+        sx={{ 
+          backgroundColor: 'background.paper',
+          pt: 4,
+          pb: 6,
+          mb: 4,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))'
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ mb: { xs: 3, md: 0 } }}>
+              <Typography variant="h3" fontWeight="bold" color="primary">
+                SecureFlow Dashboard
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body1" sx={{ mt: 1 }} color="text.secondary">
+                Real-time analytics and insights from transaction anomaly detection
+              </Typography>
+            </Box>
+            <Box>
+              <Chip 
+                icon={<Assessment />} 
+                label="LAST 7 DAYS" 
+                color="primary" 
+                variant="outlined"
+                sx={{ fontWeight: 'medium' }}
+              />
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ mb: 6 }}>
+        {/* Key Metrics */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 6 }}>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+            <Card elevation={3} sx={{ 
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-5px)' }
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'primary.main' }} />
+              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: 'primary.light',
+                  borderRadius: '50%',
+                  width: 60,
+                  height: 60,
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Assessment sx={{ fontSize: 30, color: 'white' }} />
+                </Box>
+                <Typography variant="h3" fontWeight="bold" color="primary">
+                  {data?.total_transactions || 0}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
                 Total Transactions
               </Typography>
             </CardContent>
@@ -147,13 +195,32 @@ const Dashboard: React.FC = () => {
         </Box>
         
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Security color="error" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h4" color="error">
+          <Card elevation={3} sx={{ 
+            borderRadius: 3,
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'transform 0.2s',
+            '&:hover': { transform: 'translateY(-5px)' }
+          }}>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'error.main' }} />
+            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                bgcolor: 'error.light',
+                borderRadius: '50%',
+                width: 60,
+                height: 60,
+                mx: 'auto',
+                mb: 2
+              }}>
+                <Security sx={{ fontSize: 30, color: 'white' }} />
+              </Box>
+              <Typography variant="h3" fontWeight="bold" color="error">
                 {data?.fraud_detected || 0}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body1" color="text.secondary">
                 Anomalies Detected
               </Typography>
             </CardContent>
@@ -161,13 +228,32 @@ const Dashboard: React.FC = () => {
         </Box>
         
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <TrendingUp color="warning" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h4" color="warning.main">
+          <Card elevation={3} sx={{ 
+            borderRadius: 3,
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'transform 0.2s',
+            '&:hover': { transform: 'translateY(-5px)' }
+          }}>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'warning.main' }} />
+            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                bgcolor: 'warning.light',
+                borderRadius: '50%',
+                width: 60,
+                height: 60,
+                mx: 'auto',
+                mb: 2
+              }}>
+                <TrendingUp sx={{ fontSize: 30, color: 'white' }} />
+              </Box>
+              <Typography variant="h3" fontWeight="bold" color="warning.main">
                 {data?.anomaly_rate ? (data.anomaly_rate * 100).toFixed(1) : 0}%
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body1" color="text.secondary">
                 Anomaly Rate
               </Typography>
             </CardContent>
@@ -175,10 +261,29 @@ const Dashboard: React.FC = () => {
         </Box>
         
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Feedback color="success" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h4" color="success.main">
+          <Card elevation={3} sx={{ 
+            borderRadius: 3,
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'transform 0.2s',
+            '&:hover': { transform: 'translateY(-5px)' }
+          }}>
+            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'success.main' }} />
+            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                bgcolor: 'success.light',
+                borderRadius: '50%',
+                width: 60,
+                height: 60,
+                mx: 'auto',
+                mb: 2
+              }}>
+                <Feedback sx={{ fontSize: 30, color: 'white' }} />
+              </Box>
+              <Typography variant="h3" fontWeight="bold" color="success.main">
                 {data?.compliance_score?.toFixed(1) || 'N/A'}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -190,12 +295,32 @@ const Dashboard: React.FC = () => {
       </Box>
 
       {/* Charts */}
+      <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
+        Transaction Analytics
+      </Typography>
+      
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Hourly Transaction Distribution
-            </Typography>
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              p: 3, 
+              borderRadius: 3,
+              height: '100%',
+              backgroundImage: 'linear-gradient(to bottom, rgba(37, 99, 235, 0.02), rgba(255, 255, 255, 0))'
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6" fontWeight="medium">
+                Hourly Transaction Distribution
+              </Typography>
+              <Chip 
+                label="Last 24 Hours" 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+              />
+            </Box>
             {getHourlyChartData() && (
               <Box sx={{ height: 400 }}>
                 <Bar
@@ -304,6 +429,7 @@ const Dashboard: React.FC = () => {
         </Box>
       </Box>
     </Container>
+    </>
   );
 };
 

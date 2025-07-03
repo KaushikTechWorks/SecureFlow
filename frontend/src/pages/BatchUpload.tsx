@@ -15,8 +15,12 @@ import {
   CircularProgress,
   Chip,
   LinearProgress,
+  Card,
+  CardContent,
+  Divider,
+  useTheme,
 } from '@mui/material';
-import { CloudUpload, Download } from '@mui/icons-material';
+import { CloudUpload, Download, Article, CheckCircle, Warning } from '@mui/icons-material';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 
@@ -40,6 +44,7 @@ const BatchUpload: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BatchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -137,146 +142,309 @@ const BatchUpload: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom color="primary">
-        Batch Transaction Analysis
-      </Typography>
-      
-      <Typography variant="body1" sx={{ mb: 4 }} color="text.secondary">
-        Upload a CSV file containing multiple transactions for bulk anomaly detection
-      </Typography>
-
-      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Upload CSV File
-        </Typography>
-        
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            CSV should contain columns: amount, hour, day_of_week, merchant_category, transaction_type
-          </Typography>
-          
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={downloadSampleCSV}
-            sx={{ mb: 2 }}
-          >
-            Download Sample CSV
-          </Button>
-        </Box>
-
-        <Box sx={{ mb: 3 }}>
-          <input
-            accept=".csv"
-            style={{ display: 'none' }}
-            id="csv-file-input"
-            type="file"
-            onChange={handleFileChange}
-          />
-          <label htmlFor="csv-file-input">
+    <>
+      {/* Header */}
+      <Box 
+        sx={{ 
+          backgroundColor: 'background.paper',
+          pt: 4,
+          pb: 6,
+          mb: 4,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))'
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ mb: { xs: 3, md: 0 } }}>
+              <Typography variant="h3" fontWeight="bold" color="primary">
+                Batch Transaction Analysis
+              </Typography>
+              <Typography variant="body1" sx={{ mt: 1 }} color="text.secondary">
+                Upload a CSV file containing multiple transactions for bulk anomaly detection
+              </Typography>
+            </Box>
             <Button
               variant="contained"
-              component="span"
-              startIcon={<CloudUpload />}
-              sx={{ mr: 2 }}
+              startIcon={<Download />}
+              onClick={downloadSampleCSV}
+              sx={{ 
+                boxShadow: 2,
+                '&:hover': {
+                  boxShadow: 4
+                }
+              }}
             >
-              Choose CSV File
+              Download Sample CSV
             </Button>
-          </label>
+          </Box>
+        </Container>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ mb: 6 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 60%' } }}>
+            <Paper elevation={3} sx={{ 
+              p: 4, 
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: theme.palette.divider
+            }}>
+              <Typography variant="h5" gutterBottom fontWeight="medium">
+                Upload Transaction File
+              </Typography>
+              
+              <Box sx={{ mb: 4, p: 3, bgcolor: 'background.default', borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Article color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="subtitle1" fontWeight="medium">File Requirements</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  CSV should contain the following columns:
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+                  <Typography component="li" variant="body2" color="text.secondary">amount (float)</Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">hour (int, 0-23)</Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">day_of_week (int, 0-6)</Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">merchant_category (int)</Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">transaction_type (int)</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <input
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  id="csv-file-input"
+                  type="file"
+                  onChange={handleFileChange}
+                />
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
+                  <label htmlFor="csv-file-input" style={{ display: 'flex', flexGrow: 1 }}>
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<CloudUpload />}
+                      fullWidth
+                      sx={{ height: '56px', borderStyle: 'dashed', borderWidth: '2px' }}
+                    >
+                      Choose CSV File
+                    </Button>
+                  </label>
+                  
+                  <Button
+                    variant="contained"
+                    onClick={handleUpload}
+                    disabled={!file || loading}
+                    size="large"
+                    sx={{ height: '56px', px: 4, flexShrink: 0 }}
+                  >
+                    {loading ? <CircularProgress size={24} /> : 'Analyze Transactions'}
+                  </Button>
+                </Box>
+                
+                {file && (
+                  <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
+                    <CheckCircle color="success" fontSize="small" sx={{ mr: 1 }} />
+                    <Typography variant="body2">
+                      Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+                  {error}
+                </Alert>
+              )}
+            </Paper>
+          </Box>
           
-          {file && (
-            <Typography variant="body2" component="span">
-              Selected: {file.name}
-            </Typography>
-          )}
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 37%' } }}>
+            <Card elevation={3} sx={{ 
+              height: '100%', 
+              borderRadius: 3,
+              backgroundImage: 'linear-gradient(to bottom right, rgba(21, 101, 192, 0.05), rgba(21, 101, 192, 0.01))'
+            }}>
+              <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="h5" gutterBottom fontWeight="medium">
+                  Batch Processing Benefits
+                </Typography>
+                <Divider sx={{ mb: 3 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', mb: 3, gap: 2 }}>
+                    <Box sx={{ bgcolor: 'primary.light', borderRadius: '50%', p: 1, height: 40, width: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography variant="h6" color="white">1</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">Efficient Analysis</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Process hundreds of transactions in a single request
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', mb: 3, gap: 2 }}>
+                    <Box sx={{ bgcolor: 'primary.light', borderRadius: '50%', p: 1, height: 40, width: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography variant="h6" color="white">2</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">Detailed Reporting</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Get comprehensive results for each transaction
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Box sx={{ bgcolor: 'primary.light', borderRadius: '50%', p: 1, height: 40, width: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography variant="h6" color="white">3</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">Risk Assessment</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Identify anomalies and risk patterns in your transaction data
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        <Button
-          variant="contained"
-          onClick={handleUpload}
-          disabled={!file || loading}
-          size="large"
-          sx={{ mt: 2 }}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Analyze Transactions'}
-        </Button>
-      </Paper>
-
       {loading && (
-        <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Processing...
-          </Typography>
-          <LinearProgress />
-          <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
-            Analyzing transactions for anomalies
+        <Paper elevation={3} sx={{ 
+          p: 4, 
+          mb: 4, 
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: theme.palette.primary.light
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Processing Transactions
+            </Typography>
+            <CircularProgress size={20} sx={{ ml: 2 }} />
+          </Box>
+          <LinearProgress sx={{ height: 8, borderRadius: 4, mb: 2 }} />
+          <Typography variant="body2" color="text.secondary">
+            Analyzing transactions for anomalies. This may take a moment for large files...
           </Typography>
         </Paper>
       )}
 
       {results && (
-        <Paper elevation={3} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Analysis Results
-          </Typography>
+        <Paper elevation={3} sx={{ 
+          p: 0, 
+          borderRadius: 3,
+          overflow: 'hidden',
+          border: '1px solid',
+          borderColor: theme.palette.divider
+        }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: theme.palette.divider }}>
+            <Typography variant="h5" fontWeight="medium">
+              Analysis Results
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Processed at {new Date(results.timestamp).toLocaleString()}
+            </Typography>
+          </Box>
           
-          <Box sx={{ mb: 3, display: 'flex', gap: 3 }}>
-            <Box>
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: { xs: 2, md: 0 }, 
+            p: { xs: 2, md: 0 },
+            borderBottom: '1px solid',
+            borderColor: theme.palette.divider
+          }}>
+            <Box sx={{ 
+              flex: { xs: '1 1 100%', sm: '1 1 30%', md: '1 1 33.33%' },
+              p: { xs: 2, md: 3 },
+              borderRight: { md: '1px solid' },
+              borderBottom: { xs: '1px solid', sm: 'none' },
+              borderColor: 'divider',
+              textAlign: 'center'
+            }}>
               <Typography variant="body2" color="text.secondary">
                 Total Processed
               </Typography>
-              <Typography variant="h5">
+              <Typography variant="h4" fontWeight="bold">
                 {results.total_processed}
               </Typography>
             </Box>
-            <Box>
+            
+            <Box sx={{ 
+              flex: { xs: '1 1 100%', sm: '1 1 30%', md: '1 1 33.33%' },
+              p: { xs: 2, md: 3 },
+              borderRight: { md: '1px solid' },
+              borderBottom: { xs: '1px solid', sm: 'none' },
+              borderColor: 'divider',
+              textAlign: 'center'
+            }}>
               <Typography variant="body2" color="text.secondary">
                 Anomalies Detected
               </Typography>
-              <Typography variant="h5" color="error.main">
+              <Typography variant="h4" fontWeight="bold" color="error.main">
                 {results.results.filter(r => r.is_anomaly).length}
               </Typography>
             </Box>
-            <Box>
+            
+            <Box sx={{ 
+              flex: { xs: '1 1 100%', sm: '1 1 30%', md: '1 1 33.33%' },
+              p: { xs: 2, md: 3 },
+              textAlign: 'center'
+            }}>
               <Typography variant="body2" color="text.secondary">
                 Anomaly Rate
               </Typography>
-              <Typography variant="h5">
+              <Typography variant="h4" fontWeight="bold" 
+                sx={{ color: getAnomalyRate() > 15 ? 'error.main' : getAnomalyRate() > 5 ? 'warning.main' : 'success.main' }}
+              >
                 {getAnomalyRate().toFixed(1)}%
               </Typography>
             </Box>
           </Box>
 
-          <TableContainer>
-            <Table>
+          <TableContainer sx={{ maxHeight: 400 }}>
+            <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Index</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Anomaly Score</TableCell>
-                  <TableCell>Confidence</TableCell>
-                  <TableCell>Transaction ID</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Index</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Anomaly Score</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Confidence</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {results.results.map((result, index) => (
-                  <TableRow key={index}>
+                  <TableRow 
+                    key={index} 
+                    sx={{ 
+                      bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
+                      '&:hover': { bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+                    }}
+                  >
                     <TableCell>{result.index}</TableCell>
                     <TableCell>
                       {result.error ? (
-                        <Chip label="Error" color="error" size="small" />
+                        <Chip 
+                          icon={<Warning fontSize="small" />} 
+                          label="Error" 
+                          color="error" 
+                          size="small" 
+                          sx={{ fontWeight: 'medium' }}
+                        />
                       ) : (
                         <Chip
                           label={result.is_anomaly ? 'Suspicious' : 'Normal'}
                           color={result.is_anomaly ? 'error' : 'success'}
                           size="small"
+                          sx={{ fontWeight: 'medium' }}
                         />
                       )}
                     </TableCell>
@@ -297,6 +465,7 @@ const BatchUpload: React.FC = () => {
         </Paper>
       )}
     </Container>
+    </>
   );
 };
 

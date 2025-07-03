@@ -1,4 +1,5 @@
 services:
+  # Development simulation of the Lambda backend
   backend:
     build: ./backend
     ports:
@@ -6,6 +7,10 @@ services:
     environment:
       - FLASK_ENV=production
       - DATABASE_URL=sqlite:///secureflow.db
+      # Simulating Lambda environment
+      - AWS_LAMBDA_FUNCTION_NAME=secureflow-api
+      - AWS_LAMBDA_FUNCTION_VERSION=$LATEST
+      - AWS_REGION=us-east-1
     volumes:
       - backend_data:/app/data
     healthcheck:
@@ -15,17 +20,17 @@ services:
       retries: 3
       start_period: 40s
 
+  # Development simulation of the S3-hosted frontend
   frontend:
     build: 
       context: ./frontend
       args:
-        REACT_APP_API_URL: ${API_URL:-http://localhost:5001}
+        # Use AWS API Gateway URL by default, or local backend for development
+        REACT_APP_API_URL: ${API_URL:-https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod}
     ports:
       - "80:80"
-    depends_on:
-      - backend
     environment:
-      - REACT_APP_API_URL=${API_URL:-http://localhost:5001}
+      - REACT_APP_API_URL=${API_URL:-https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
