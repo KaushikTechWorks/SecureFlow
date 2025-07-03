@@ -5,10 +5,9 @@
   "cpu": "1024",
   "memory": "2048",
   "executionRoleArn": "arn:aws:iam::834620997253:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::834620997253:role/ecsTaskRole",
   "containerDefinitions": [
     {
-      "name": "secureflow-backend",
+      "name": "backend",
       "image": "834620997253.dkr.ecr.us-east-1.amazonaws.com/secureflow-backend:latest",
       "portMappings": [
         {
@@ -34,20 +33,10 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
-      "healthCheck": {
-        "command": [
-          "CMD-SHELL",
-          "curl -f http://localhost:5001/api/health || exit 1"
-        ],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3,
-        "startPeriod": 60
-      },
       "essential": true
     },
     {
-      "name": "secureflow-frontend",
+      "name": "frontend",
       "image": "834620997253.dkr.ecr.us-east-1.amazonaws.com/secureflow-frontend:latest",
       "portMappings": [
         {
@@ -58,7 +47,7 @@
       "environment": [
         {
           "name": "REACT_APP_API_URL",
-          "value": "http://localhost:5001"
+          "value": "http://secureflow-alb-2001003826.us-east-1.elb.amazonaws.com/api"
         }
       ],
       "logConfiguration": {
@@ -69,19 +58,10 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
-      "healthCheck": {
-        "command": [
-          "CMD-SHELL",
-          "curl -f http://localhost || exit 1"
-        ],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3
-      },
       "dependsOn": [
         {
-          "containerName": "secureflow-backend",
-          "condition": "HEALTHY"
+          "containerName": "backend",
+          "condition": "START"
         }
       ],
       "essential": true

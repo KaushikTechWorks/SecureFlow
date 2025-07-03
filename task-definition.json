@@ -1,0 +1,56 @@
+{
+    "family": "secureflow-task",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "2048",
+    "executionRoleArn": "arn:aws:iam::834620997253:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "frontend",
+            "image": "834620997253.dkr.ecr.us-east-1.amazonaws.com/secureflow-frontend:latest",
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/secureflow",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "frontend",
+                    "awslogs-create-group": "true"
+                }
+            }
+        },
+        {
+            "name": "backend",
+            "image": "834620997253.dkr.ecr.us-east-1.amazonaws.com/secureflow-backend:latest",
+            "portMappings": [
+                {
+                    "containerPort": 5001,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "FLASK_ENV",
+                    "value": "production"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/secureflow",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "backend",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+}

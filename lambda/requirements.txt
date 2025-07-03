@@ -1,0 +1,2 @@
+# Lambda function requirements - minimal for now
+boto3==1.28.85

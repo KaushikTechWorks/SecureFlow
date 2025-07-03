@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import pandas as pd
 import numpy as np
@@ -128,6 +128,22 @@ def health_check():
         'model_loaded': model is not None,
         'timestamp': datetime.now().isoformat()
     })
+
+# Serve React frontend static files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve React frontend files"""
+    # Skip API routes - let them be handled by their specific handlers
+    if path.startswith('api/'):
+        return None  # This will result in a 404, letting API routes handle themselves
+    
+    # Serve static files
+    if path != "" and os.path.exists(os.path.join('/app/build', path)):
+        return send_from_directory('/app/build', path)
+    else:
+        # For any non-API route, serve the React app's index.html (SPA routing)
+        return send_from_directory('/app/build', 'index.html')
 
 @app.route('/api/predict', methods=['POST'])
 def predict_anomaly():
