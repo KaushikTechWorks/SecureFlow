@@ -1,5 +1,5 @@
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+// API Configuration - Updated for cache refresh
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod';
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
@@ -8,7 +8,7 @@ export const API_CONFIG = {
     PREDICT: `${API_BASE_URL}/api/predict`,
     PREDICT_BATCH: `${API_BASE_URL}/api/predict-batch`,
     FEEDBACK: `${API_BASE_URL}/api/feedback`,
-    DASHBOARD: `${API_BASE_URL}/api/dashboard`,
+    DASHBOARD: `${API_BASE_URL}/api/analytics`, // Updated to match Lambda endpoint
     TRANSACTIONS: `${API_BASE_URL}/api/transactions`,
   }
 };

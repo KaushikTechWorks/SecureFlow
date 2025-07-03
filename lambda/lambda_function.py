@@ -31,7 +31,17 @@ def handle_predict(event, context):
     """Handle single transaction prediction - simplified version"""
     try:
         # Parse request body
-        body = json.loads(event['body'])
+        try:
+            body = json.loads(event['body'])
+        except (json.JSONDecodeError, TypeError) as e:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
         
         # Extract features
         amount = float(body.get('amount', 0))
@@ -49,43 +59,29 @@ def handle_predict(event, context):
         # Simple rules for anomaly detection
         if amount > 1000:  # High amount
             is_anomaly = True
-            anomaly_score = -0.8
+            anomaly_score = 0.8
             risk_level = 'High'
         elif hour < 6 or hour > 22:  # Unusual hours
             is_anomaly = True
-            anomaly_score = -0.6
+            anomaly_score = 0.6
             risk_level = 'Medium'
         elif amount < 1:  # Very small amount
             is_anomaly = True
-            anomaly_score = -0.4
+            anomaly_score = 0.4
             risk_level = 'Medium'
         else:
             # Normal transaction
             anomaly_score = random.uniform(0.1, 0.3)
             risk_level = 'Low'
         
-        # Mock explanation
-        explanation = {
-            'amount': {
-                'value': amount,
-                'impact': 'High' if amount > 1000 else 'Low'
-            },
-            'hour': {
-                'value': hour,
-                'impact': 'High' if hour < 6 or hour > 22 else 'Low'
-            },
-            'day_of_week': {
-                'value': day_of_week,
-                'impact': 'Low'
-            },
-            'merchant_category': {
-                'value': merchant_category,
-                'impact': 'Low'
-            },
-            'transaction_type': {
-                'value': transaction_type,
-                'impact': 'Low'
-            }
+        # Mock SHAP explanation - format expected by frontend
+        # Higher absolute values indicate more impact
+        shap_explanation = {
+            'amount': 0.3 if amount > 1000 else -0.1,
+            'hour': 0.4 if hour < 6 or hour > 22 else -0.05,
+            'day_of_week': random.uniform(-0.1, 0.1),
+            'merchant_category': random.uniform(-0.15, 0.15),
+            'transaction_type': random.uniform(-0.1, 0.1)
         }
         
         # Generate transaction ID
@@ -104,7 +100,8 @@ def handle_predict(event, context):
                 'is_anomaly': is_anomaly,
                 'anomaly_score': anomaly_score,
                 'confidence': abs(anomaly_score),
-                'explanation': explanation,
+                'shap_explanation': shap_explanation,
+                'timestamp': datetime.now().isoformat(),
                 'risk_level': risk_level,
                 'message': 'Prediction completed successfully'
             })
@@ -164,6 +161,7 @@ def handle_transactions(event, context):
             transactions.append({
                 'id': random.randint(1000, 9999),
                 'amount': round(random.uniform(10, 1500), 2),
+                'description': f'Transaction {i+1} - {random.choice(["Purchase", "Transfer", "Payment", "Refund"])}',
                 'timestamp': datetime.now().isoformat(),
                 'is_anomaly': random.choice([True, False]),
                 'risk_level': random.choice(['Low', 'Medium', 'High']),
@@ -210,6 +208,9 @@ def handle_root(event, context):
                 'GET /',
                 'GET /health',
                 'GET /api/health',
+                'POST /api/predict',
+                'POST /api/predict-batch',
+                'POST /api/feedback',
                 'GET /api/transactions',
                 'POST /api/transactions',
                 'GET /api/analytics',
@@ -228,13 +229,20 @@ def handle_create_transaction(event, context):
         # Generate a simple transaction
         transaction = {
             'id': f"tx_{random.randint(100000, 999999)}",
+            'transaction_id': f"tx_{random.randint(100000, 999999)}",  # Add this for test compatibility
             'amount': float(body.get('amount', 0)),
             'description': body.get('description', 'Transaction'),
             'category': body.get('category', 'general'),
             'merchant': body.get('merchant', 'Unknown'),
             'timestamp': datetime.now().isoformat(),
-            'status': 'completed'
+            'status': 'completed',
+            'message': 'Transaction created successfully'  # Add this for test compatibility
         }
+        
+        # Add the message field that tests expect
+        response_body = transaction.copy()
+        response_body['message'] = 'Transaction created successfully'
+        response_body['transaction_id'] = transaction['id']
         
         return {
             'statusCode': 201,
@@ -242,7 +250,7 @@ def handle_create_transaction(event, context):
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': json.dumps(transaction)
+            'body': json.dumps(response_body)
         }
     except Exception as e:
         return {
@@ -297,7 +305,13 @@ def handle_analytics(event, context):
         'average_amount': 304.00,
         'transactions_today': 12,
         'fraud_detected': 2,
+        'anomaly_rate': 0.013,  # Added missing field
         'compliance_score': 98.5,
+        'risk_distribution': {  # Added missing field
+            'low': 142,
+            'medium': 6,
+            'high': 2
+        },
         'top_categories': [
             {'category': 'retail', 'count': 45, 'amount': 12500.00},
             {'category': 'food', 'count': 32, 'amount': 8750.50},
@@ -374,7 +388,7 @@ def handle_fraud_check(event, context):
         
         result = {
             'transaction_id': f"tx_{random.randint(100000, 999999)}",
-            'risk_score': round(risk_score, 2),
+            'fraud_score': round(risk_score, 2),  # Changed from risk_score to fraud_score
             'is_suspicious': is_suspicious,
             'risk_factors': [],
             'recommendation': 'approve' if not is_suspicious else 'review'
@@ -402,6 +416,24 @@ def handle_fraud_check(event, context):
             },
             'body': json.dumps({'error': 'Fraud check failed', 'message': str(e)})
         }
+
+def handle_compliance(event, context):
+    """Get compliance status"""
+    compliance_data = {
+        'compliance_status': 'compliant',
+        'last_updated': datetime.now().isoformat(),
+        'score': 98.5,
+        'status': 'green'
+    }
+    
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+        'body': json.dumps(compliance_data)
+    }
 
 def handle_compliance_report(event, context):
     """Generate compliance report"""
@@ -432,6 +464,144 @@ def handle_compliance_report(event, context):
         },
         'body': json.dumps(report)
     }
+
+def handle_predict_batch(event, context):
+    """Handle batch transaction prediction"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        transactions = body.get('transactions', [])
+        
+        if not transactions:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'error': 'Missing transactions array'})
+            }
+        
+        results = []
+        for i, transaction in enumerate(transactions):
+            try:
+                # Extract features
+                amount = float(transaction.get('amount', 0))
+                hour = int(transaction.get('hour', 12))
+                day_of_week = int(transaction.get('day_of_week', 1))
+                merchant_category = int(transaction.get('merchant_category', 0))
+                transaction_type = int(transaction.get('transaction_type', 0))
+                
+                # Simple rule-based anomaly detection
+                is_anomaly = False
+                anomaly_score = 0.0
+                
+                if amount > 1000:
+                    is_anomaly = True
+                    anomaly_score = 0.8
+                elif hour < 6 or hour > 22:
+                    is_anomaly = True
+                    anomaly_score = 0.6
+                elif amount < 1:
+                    is_anomaly = True
+                    anomaly_score = 0.4
+                else:
+                    anomaly_score = random.uniform(0.1, 0.3)
+                
+                transaction_id = random.randint(1000, 9999)
+                
+                results.append({
+                    'index': i,
+                    'transaction_id': transaction_id,
+                    'is_anomaly': is_anomaly,
+                    'anomaly_score': anomaly_score,
+                    'confidence': abs(anomaly_score)
+                })
+                
+            except Exception as e:
+                results.append({
+                    'index': i,
+                    'error': str(e)
+                })
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'results': results,
+                'total_processed': len(results),
+                'timestamp': datetime.now().isoformat()
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in batch prediction: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': str(e)})
+        }
+
+def handle_feedback(event, context):
+    """Handle user feedback submission"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        
+        # Extract feedback data
+        transaction_id = body.get('transaction_id')
+        feedback_type = body.get('feedback_type', 'correction')  # 'correction' or 'confirmation'
+        is_correct = body.get('is_correct', True)
+        user_comment = body.get('comment', '')
+        
+        if not transaction_id:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'error': 'Missing transaction_id'})
+            }
+        
+        # Generate feedback ID
+        feedback_id = f"fb_{random.randint(100000, 999999)}"
+        
+        # Mock feedback processing
+        response_data = {
+            'feedback_id': feedback_id,
+            'transaction_id': transaction_id,
+            'status': 'received',
+            'feedback_type': feedback_type,
+            'is_correct': is_correct,
+            'comment': user_comment,
+            'timestamp': datetime.now().isoformat(),
+            'message': 'Thank you for your feedback! This will help improve our model.'
+        }
+        
+        return {
+            'statusCode': 201,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in feedback: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': str(e)})
+        }
 
 def lambda_handler(event, context):
     """Main Lambda handler that routes requests"""
@@ -479,6 +649,10 @@ def lambda_handler(event, context):
             return handle_root(event, context)
         elif normalized_path == '/api/predict' and http_method == 'POST':
             return handle_predict(event, context)
+        elif normalized_path in ['/api/predict-batch', '/predict-batch'] and http_method == 'POST':
+            return handle_predict_batch(event, context)
+        elif normalized_path in ['/api/feedback', '/feedback'] and http_method == 'POST':
+            return handle_feedback(event, context)
         elif normalized_path == '/api/dashboard' and http_method == 'GET':
             return handle_dashboard(event, context)
         elif normalized_path in ['/api/transactions', '/transactions'] and http_method == 'GET':
@@ -493,6 +667,8 @@ def lambda_handler(event, context):
             return handle_search(event, context)
         elif normalized_path in ['/api/fraud-check', '/fraud-check'] and http_method == 'POST':
             return handle_fraud_check(event, context)
+        elif normalized_path in ['/api/compliance', '/compliance'] and http_method == 'GET':
+            return handle_compliance(event, context)
         elif normalized_path in ['/api/compliance/report', '/compliance/report'] and http_method == 'GET':
             return handle_compliance_report(event, context)
         else:
@@ -512,6 +688,8 @@ def lambda_handler(event, context):
                         'GET /health',
                         'GET /api/health',
                         'POST /api/predict',
+                        'POST /api/predict-batch',
+                        'POST /api/feedback',
                         'GET /api/dashboard',
                         'GET /api/transactions',
                         'POST /api/transactions',

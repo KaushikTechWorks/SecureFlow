@@ -1,0 +1,39 @@
+{
+  "resource": "/api/{proxy+}",
+  "path": "/api/health",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "*/*",
+    "Content-Type": "application/json",
+    "Host": "81qdg9wrm7.execute-api.us-east-1.amazonaws.com",
+    "User-Agent": "curl/7.68.0"
+  },
+  "multiValueHeaders": {},
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "proxy": "health"
+  },
+  "stageVariables": null,
+  "requestContext": {
+    "resourceId": "rsirxp",
+    "resourcePath": "/api/{proxy+}",
+    "httpMethod": "GET",
+    "extendedRequestId": "test-request-id",
+    "requestTime": "03/Jul/2025:00:30:00 +0000",
+    "path": "/prod/api/health",
+    "accountId": "834620997253",
+    "protocol": "HTTP/1.1",
+    "stage": "prod",
+    "domainPrefix": "81qdg9wrm7",
+    "requestTimeEpoch": 1720053000000,
+    "requestId": "test-request-id",
+    "identity": {
+      "sourceIp": "127.0.0.1"
+    },
+    "domainName": "81qdg9wrm7.execute-api.us-east-1.amazonaws.com",
+    "apiId": "81qdg9wrm7"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}

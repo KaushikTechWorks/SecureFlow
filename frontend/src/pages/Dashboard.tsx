@@ -34,29 +34,24 @@ ChartJS.register(
   ArcElement
 );
 
-interface DashboardStats {
-  total_transactions: number;
-  anomalies_detected: number;
-  avg_anomaly_score: number;
-  anomaly_rate: number;
-}
-
-interface HourlyData {
-  hour: number;
-  total_transactions: number;
-  anomalies: number;
-}
-
-interface FeedbackStats {
-  total_feedback: number;
-  positive_feedback: number;
-  accuracy: number;
-}
-
 interface DashboardData {
-  stats: DashboardStats;
-  hourly_distribution: HourlyData[];
-  feedback: FeedbackStats;
+  total_transactions: number;
+  total_amount: number;
+  average_amount: number;
+  transactions_today: number;
+  fraud_detected: number;
+  anomaly_rate: number;
+  compliance_score: number;
+  risk_distribution: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  top_categories: Array<{
+    category: string;
+    count: number;
+    amount: number;
+  }>;
 }
 
 const Dashboard: React.FC = () => {
@@ -81,52 +76,23 @@ const Dashboard: React.FC = () => {
   };
 
   const getHourlyChartData = () => {
-    if (!data?.hourly_distribution) return null;
-
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const transactionData = hours.map(hour => {
-      const hourData = data.hourly_distribution.find(h => h.hour === hour);
-      return hourData?.total_transactions || 0;
-    });
-    const anomalyData = hours.map(hour => {
-      const hourData = data.hourly_distribution.find(h => h.hour === hour);
-      return hourData?.anomalies || 0;
-    });
-
-    return {
-      labels: hours.map(h => `${h}:00`),
-      datasets: [
-        {
-          label: 'Total Transactions',
-          data: transactionData,
-          backgroundColor: 'rgba(25, 118, 210, 0.6)',
-          borderColor: 'rgba(25, 118, 210, 1)',
-          borderWidth: 1,
-        },
-        {
-          label: 'Anomalies',
-          data: anomalyData,
-          backgroundColor: 'rgba(220, 0, 78, 0.6)',
-          borderColor: 'rgba(220, 0, 78, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
+    // Since the API doesn't provide hourly data, we'll create mock data
+    // or hide this chart until we implement it in the backend
+    return null;
   };
 
   const getAnomalyDistributionData = () => {
-    if (!data?.stats) return null;
+    if (!data?.risk_distribution) return null;
 
-    const normal = data.stats.total_transactions - data.stats.anomalies_detected;
-    const anomalies = data.stats.anomalies_detected;
+    const { low, medium, high } = data.risk_distribution;
 
     return {
-      labels: ['Normal Transactions', 'Suspicious Transactions'],
+      labels: ['Low Risk', 'Medium Risk', 'High Risk'],
       datasets: [
         {
-          data: [normal, anomalies],
-          backgroundColor: ['rgba(46, 125, 50, 0.8)', 'rgba(220, 0, 78, 0.8)'],
-          borderColor: ['rgba(46, 125, 50, 1)', 'rgba(220, 0, 78, 1)'],
+          data: [low, medium, high],
+          backgroundColor: ['rgba(46, 125, 50, 0.8)', 'rgba(255, 193, 7, 0.8)', 'rgba(220, 0, 78, 0.8)'],
+          borderColor: ['rgba(46, 125, 50, 1)', 'rgba(255, 193, 7, 1)', 'rgba(220, 0, 78, 1)'],
           borderWidth: 2,
         },
       ],
@@ -161,7 +127,7 @@ const Dashboard: React.FC = () => {
       </Typography>
       
       <Typography variant="body1" sx={{ mb: 4 }} color="text.secondary">
-        Analytics and insights from transaction anomaly detection (Last 7 days)
+        Real-time analytics and insights from transaction anomaly detection (Last 7 days)
       </Typography>
 
       {/* Key Metrics */}
@@ -171,7 +137,7 @@ const Dashboard: React.FC = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Assessment color="primary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h4" color="primary">
-                {data?.stats.total_transactions || 0}
+                {data?.total_transactions || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total Transactions
@@ -185,7 +151,7 @@ const Dashboard: React.FC = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Security color="error" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h4" color="error">
-                {data?.stats.anomalies_detected || 0}
+                {data?.fraud_detected || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Anomalies Detected
@@ -199,7 +165,7 @@ const Dashboard: React.FC = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <TrendingUp color="warning" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h4" color="warning.main">
-                {data?.stats.anomaly_rate.toFixed(1) || 0}%
+                {data?.anomaly_rate ? (data.anomaly_rate * 100).toFixed(1) : 0}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Anomaly Rate
@@ -213,10 +179,10 @@ const Dashboard: React.FC = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Feedback color="success" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h4" color="success.main">
-                {data?.feedback.accuracy.toFixed(1) || 0}%
+                {data?.compliance_score?.toFixed(1) || 'N/A'}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Model Accuracy
+                Compliance Score
               </Typography>
             </CardContent>
           </Card>
@@ -291,9 +257,9 @@ const Dashboard: React.FC = () => {
               Model Performance
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Average Anomaly Score:</Typography>
+              <Typography variant="body1">Average Transaction Amount:</Typography>
               <Typography variant="body1" fontWeight="bold">
-                {data?.stats.avg_anomaly_score.toFixed(3) || 'N/A'}
+                ${data?.average_amount?.toFixed(2) || 'N/A'}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -314,24 +280,24 @@ const Dashboard: React.FC = () => {
         <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              User Feedback
+              Transaction Overview
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Total Feedback:</Typography>
+              <Typography variant="body1">Total Amount:</Typography>
               <Typography variant="body1" fontWeight="bold">
-                {data?.feedback.total_feedback || 0}
+                ${data?.total_amount?.toLocaleString() || 0}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Positive Feedback:</Typography>
+              <Typography variant="body1">Transactions Today:</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.feedback.positive_feedback || 0}
+                {data?.transactions_today || 0}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body1">Model Accuracy:</Typography>
+              <Typography variant="body1">Compliance Score:</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.feedback.accuracy.toFixed(1) || 0}%
+                {data?.compliance_score?.toFixed(1) || 0}%
               </Typography>
             </Box>
           </Paper>

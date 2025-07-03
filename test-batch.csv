@@ -1,0 +1,4 @@
+amount,hour,day_of_week,merchant_category,transaction_type
+100.50,14,1,0,0
+1500.00,3,6,2,1
+75.25,18,3,1,0

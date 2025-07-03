@@ -25,8 +25,16 @@ interface PredictionResult {
   is_anomaly: boolean;
   anomaly_score: number;
   confidence: number;
-  shap_explanation: Record<string, number>;
-  timestamp: string;
+  explanation?: {
+    [key: string]: {
+      value: number;
+      impact: string;
+    };
+  };
+  shap_explanation?: Record<string, number>;
+  timestamp?: string;
+  risk_level: string;
+  message: string;
 }
 
 const Home: React.FC = () => {
@@ -78,17 +86,32 @@ const Home: React.FC = () => {
   };
 
   const getShapExplanation = () => {
-    if (!result?.shap_explanation) return null;
+    if (!result) return null;
 
-    const features = Object.entries(result.shap_explanation)
+    let features: [string, number][] = [];
+
+    // Handle new format (shap_explanation)
+    if (result.shap_explanation) {
+      features = Object.entries(result.shap_explanation);
+    } 
+    // Handle legacy format (explanation)
+    else if (result.explanation) {
+      features = Object.entries(result.explanation).map(([key, value]) => [
+        key,
+        value.impact === 'High' ? 0.5 : value.impact === 'Medium' ? 0.3 : 0.1
+      ]);
+    }
+
+    if (features.length === 0) return null;
+
+    return features
       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-      .slice(0, 3);
-
-    return features.map(([feature, value]) => ({
-      feature: feature.replace('_', ' ').toUpperCase(),
-      value: value,
-      impact: value > 0 ? 'increases' : 'decreases',
-    }));
+      .slice(0, 3)
+      .map(([feature, value]) => ({
+        feature: feature.replace('_', ' ').toUpperCase(),
+        value: value,
+        impact: value > 0 ? 'increases' : 'decreases',
+      }));
   };
 
   return (
@@ -313,7 +336,7 @@ const Home: React.FC = () => {
                     Transaction ID: {result.transaction_id}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Analyzed at: {new Date(result.timestamp).toLocaleString()}
+                    Analyzed at: {result.timestamp ? new Date(result.timestamp).toLocaleString() : new Date().toLocaleString()}
                   </Typography>
                 </Box>
               </Box>

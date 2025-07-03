@@ -16,7 +16,7 @@ import sys
 import os
 
 # Configuration
-API_BASE_URL = "https://81qdg9wrm7.execute-api.us-east-1.amazonaws.com/prod"
+API_BASE_URL = "https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod"
 TIMEOUT = 30  # seconds
 
 class SecureFlowAPITests(unittest.TestCase):
@@ -92,11 +92,13 @@ class SecureFlowAPITests(unittest.TestCase):
         
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIsInstance(data, list)
+        # Fix: The API returns an object with 'transactions' key, not a direct list
+        self.assertIn('transactions', data)
+        self.assertIsInstance(data['transactions'], list)
         
-        if len(data) > 0:
+        if len(data['transactions']) > 0:
             # Verify transaction structure
-            transaction = data[0]
+            transaction = data['transactions'][0]
             required_fields = ['id', 'amount', 'description', 'timestamp']
             for field in required_fields:
                 self.assertIn(field, transaction)
@@ -165,9 +167,10 @@ class SecureFlowAPITests(unittest.TestCase):
         
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn('risk_score', data)
+        # Fix: API returns 'fraud_score' not 'risk_score'
+        self.assertIn('fraud_score', data)
         self.assertIn('is_suspicious', data)
-        print(f"   ✅ Fraud check: Risk score {data['risk_score']}, "
+        print(f"   ✅ Fraud check: Fraud score {data['fraud_score']}, "
               f"Suspicious: {data['is_suspicious']}")
 
     def test_09_compliance_report(self):
