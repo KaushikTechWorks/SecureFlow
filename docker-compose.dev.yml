@@ -1,0 +1,30 @@
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - DATABASE_URL=sqlite:///secureflow.db
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+    command: python start_server.py
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:5001
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=development
+
+volumes:
+  backend_data:

@@ -8,7 +8,7 @@ export const API_CONFIG = {
     PREDICT: `${API_BASE_URL}/api/predict`,
     PREDICT_BATCH: `${API_BASE_URL}/api/predict-batch`,
     FEEDBACK: `${API_BASE_URL}/api/feedback`,
-    DASHBOARD: `${API_BASE_URL}/api/analytics`, // Updated to match Lambda endpoint
+    DASHBOARD: `${API_BASE_URL}/api/dashboard`,
     TRANSACTIONS: `${API_BASE_URL}/api/transactions`,
   }
 };
