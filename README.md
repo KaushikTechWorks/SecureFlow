@@ -47,15 +47,7 @@ SecureFlow is designed to detect suspicious financial transactions using machine
 docker-compose up --build
 ```
 
-### AWS ECS Deployment
 
-For production deployment on AWS using Docker containers:
-
-```bash
-# Quick deployment
-chmod +x scripts/deploy-to-aws.sh
-./scripts/deploy-to-aws.sh
-```
 
 📖 **Detailed AWS deployment guide**: [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md)
 
@@ -117,9 +109,7 @@ Internet → ALB → ECS Fargate Service
 
 **DevOps:**
 - Docker & Docker Compose
-- AWS ECS (Fargate)
 - CloudFormation for infrastructure
-- ECR for container registry
 
 ## 📊 Model Performance
 
