@@ -36,23 +36,22 @@ ChartJS.register(
 );
 
 interface DashboardData {
-  total_transactions: number;
-  total_amount: number;
-  average_amount: number;
-  transactions_today: number;
-  fraud_detected: number;
-  anomaly_rate: number;
-  compliance_score: number;
-  risk_distribution: {
-    low: number;
-    medium: number;
-    high: number;
+  stats: {
+    total_transactions: number;
+    anomalies_detected: number;
+    avg_anomaly_score: number;
+    anomaly_rate: number;
   };
-  top_categories: Array<{
-    category: string;
-    count: number;
-    amount: number;
+  hourly_distribution: Array<{
+    hour: number;
+    total_transactions: number;
+    anomalies: number;
   }>;
+  feedback: {
+    total_feedback: number;
+    positive_feedback: number;
+    accuracy: number;
+  };
 }
 
 const Dashboard: React.FC = () => {
@@ -83,9 +82,17 @@ const Dashboard: React.FC = () => {
   };
 
   const getAnomalyDistributionData = () => {
-    if (!data?.risk_distribution) return null;
+    if (!data?.hourly_distribution || data.hourly_distribution.length === 0) return null;
 
-    const { low, medium, high } = data.risk_distribution;
+    // Calculate risk distribution based on anomaly rate per hour
+    let low = 0, medium = 0, high = 0;
+    
+    data.hourly_distribution.forEach(hour => {
+      const anomalyRate = hour.total_transactions > 0 ? (hour.anomalies / hour.total_transactions) * 100 : 0;
+      if (anomalyRate < 20) low += hour.total_transactions;
+      else if (anomalyRate < 50) medium += hour.total_transactions;
+      else high += hour.total_transactions;
+    });
 
     return {
       labels: ['Low Risk', 'Medium Risk', 'High Risk'],
@@ -185,7 +192,7 @@ const Dashboard: React.FC = () => {
                   <Assessment sx={{ fontSize: 30, color: 'white' }} />
                 </Box>
                 <Typography variant="h3" fontWeight="bold" color="primary">
-                  {data?.total_transactions || 0}
+                  {data?.stats?.total_transactions || 0}
               </Typography>
               <Typography variant="body1" color="text.secondary">
                 Total Transactions
@@ -218,7 +225,7 @@ const Dashboard: React.FC = () => {
                 <Security sx={{ fontSize: 30, color: 'white' }} />
               </Box>
               <Typography variant="h3" fontWeight="bold" color="error">
-                {data?.fraud_detected || 0}
+                {data?.stats?.anomalies_detected || 0}
               </Typography>
               <Typography variant="body1" color="text.secondary">
                 Anomalies Detected
@@ -251,7 +258,7 @@ const Dashboard: React.FC = () => {
                 <TrendingUp sx={{ fontSize: 30, color: 'white' }} />
               </Box>
               <Typography variant="h3" fontWeight="bold" color="warning.main">
-                {data?.anomaly_rate ? (data.anomaly_rate * 100).toFixed(1) : 0}%
+                {data?.stats?.anomaly_rate ? data.stats.anomaly_rate.toFixed(1) : 0}%
               </Typography>
               <Typography variant="body1" color="text.secondary">
                 Anomaly Rate
@@ -284,10 +291,10 @@ const Dashboard: React.FC = () => {
                 <Feedback sx={{ fontSize: 30, color: 'white' }} />
               </Box>
               <Typography variant="h3" fontWeight="bold" color="success.main">
-                {data?.compliance_score?.toFixed(1) || 'N/A'}%
+                {data?.feedback?.accuracy?.toFixed(1) || '0.0'}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Compliance Score
+                Feedback Accuracy
               </Typography>
             </CardContent>
           </Card>
@@ -382,9 +389,9 @@ const Dashboard: React.FC = () => {
               Model Performance
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Average Transaction Amount:</Typography>
+              <Typography variant="body1">Average Anomaly Score:</Typography>
               <Typography variant="body1" fontWeight="bold">
-                ${data?.average_amount?.toFixed(2) || 'N/A'}
+                {data?.stats?.avg_anomaly_score?.toFixed(4) || 'N/A'}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -408,21 +415,21 @@ const Dashboard: React.FC = () => {
               Transaction Overview
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Total Amount:</Typography>
+              <Typography variant="body1">Total Feedback:</Typography>
               <Typography variant="body1" fontWeight="bold">
-                ${data?.total_amount?.toLocaleString() || 0}
+                {data?.feedback?.total_feedback || 0}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Transactions Today:</Typography>
+              <Typography variant="body1">Positive Feedback:</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.transactions_today || 0}
+                {data?.feedback?.positive_feedback || 0}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body1">Compliance Score:</Typography>
+              <Typography variant="body1">Feedback Accuracy:</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.compliance_score?.toFixed(1) || 0}%
+                {data?.feedback?.accuracy?.toFixed(1) || 0}%
               </Typography>
             </Box>
           </Paper>
