@@ -250,10 +250,10 @@ const Home: React.FC = () => {
         {/* Features Overview */}
         <Box sx={{ mb: 6, textAlign: 'center' }}>
           <Typography variant="h4" gutterBottom color="primary">
-            Advanced Fraud Detection Features
+            Advanced Anomaly Detection Features
           </Typography>
           <Typography variant="body1" sx={{ mb: 4, maxWidth: 700, mx: 'auto' }} color="text.secondary">
-            SecureFlow uses state-of-the-art machine learning algorithms to detect and prevent fraudulent transactions in real-time.
+            SecureFlow uses state-of-the-art machine learning algorithms to detect and prevent suspicious transactions in real-time.
           </Typography>
         </Box>
         
@@ -276,7 +276,7 @@ const Home: React.FC = () => {
                 </Box>
                 <Typography variant="h6" gutterBottom fontWeight="bold">95% Accuracy</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  High precision fraud detection using machine learning to reduce false positives
+                  High precision anomaly detection using machine learning to reduce false positives
                 </Typography>
               </CardContent>
             </Card>

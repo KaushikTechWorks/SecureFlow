@@ -76,9 +76,40 @@ const Dashboard: React.FC = () => {
   };
 
   const getHourlyChartData = () => {
-    // Since the API doesn't provide hourly data, we'll create mock data
-    // or hide this chart until we implement it in the backend
-    return null;
+    if (!data?.hourly_distribution || data.hourly_distribution.length === 0) return null;
+
+    // Create a complete 24-hour dataset, filling missing hours with 0
+    const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+      const hourData = data.hourly_distribution.find(h => h.hour === hour);
+      return {
+        hour,
+        total_transactions: hourData?.total_transactions || 0,
+        anomalies: hourData?.anomalies || 0,
+        normal: (hourData?.total_transactions || 0) - (hourData?.anomalies || 0)
+      };
+    });
+
+    return {
+      labels: hourlyData.map(h => `${h.hour.toString().padStart(2, '0')}:00`),
+      datasets: [
+        {
+          label: 'Normal Transactions',
+          data: hourlyData.map(h => h.normal),
+          backgroundColor: 'rgba(46, 125, 50, 0.8)',
+          borderColor: 'rgba(46, 125, 50, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Anomalous Transactions',
+          data: hourlyData.map(h => h.anomalies),
+          backgroundColor: 'rgba(244, 67, 54, 0.8)',
+          borderColor: 'rgba(244, 67, 54, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+      ],
+    };
   };
 
   const getAnomalyDistributionData = () => {
@@ -328,7 +359,7 @@ const Dashboard: React.FC = () => {
                 variant="outlined"
               />
             </Box>
-            {getHourlyChartData() && (
+            {getHourlyChartData() ? (
               <Box sx={{ height: 400 }}>
                 <Bar
                   data={getHourlyChartData()!}
@@ -338,30 +369,105 @@ const Dashboard: React.FC = () => {
                     plugins: {
                       legend: {
                         position: 'top' as const,
+                        labels: {
+                          usePointStyle: true,
+                          padding: 20,
+                          font: {
+                            size: 12,
+                            weight: 'bold'
+                          }
+                        }
                       },
                       title: {
-                        display: true,
-                        text: 'Transaction Volume by Hour',
+                        display: false,
                       },
+                      tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                          afterLabel: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const hourData = data?.hourly_distribution?.find(h => h.hour === dataIndex);
+                            const total = hourData?.total_transactions || 0;
+                            const anomalies = hourData?.anomalies || 0;
+                            const rate = total > 0 ? ((anomalies / total) * 100).toFixed(1) : '0.0';
+                            return `Anomaly Rate: ${rate}%`;
+                          }
+                        }
+                      }
                     },
                     scales: {
-                      y: {
-                        beginAtZero: true,
+                      x: {
+                        stacked: true,
+                        grid: {
+                          display: false,
+                        },
+                        ticks: {
+                          font: {
+                            size: 10,
+                          },
+                          maxRotation: 0,
+                          callback: function(value, index) {
+                            // Show every 2nd hour to avoid crowding
+                            return index % 2 === 0 ? this.getLabelForValue(value as number) : '';
+                          }
+                        }
                       },
+                      y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: {
+                          color: 'rgba(0, 0, 0, 0.05)',
+                        },
+                        ticks: {
+                          font: {
+                            size: 10,
+                          }
+                        }
+                      },
+                    },
+                    interaction: {
+                      mode: 'index' as const,
+                      intersect: false,
                     },
                   }}
                 />
+              </Box>
+            ) : (
+              <Box sx={{ 
+                height: 400, 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'text.secondary',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                borderRadius: 2,
+                border: '2px dashed',
+                borderColor: 'divider'
+              }}>
+                <Assessment sx={{ fontSize: 60, mb: 2, opacity: 0.3 }} />
+                <Typography variant="h6" gutterBottom>
+                  No Hourly Data Available
+                </Typography>
+                <Typography variant="body2" textAlign="center" sx={{ maxWidth: 300 }}>
+                  Process some transactions to see the hourly distribution chart with normal vs anomalous transactions.
+                </Typography>
               </Box>
             )}
           </Paper>
         </Box>
         
         <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Transaction Classification
             </Typography>
-            {getAnomalyDistributionData() && (
+            {getAnomalyDistributionData() ? (
               <Box sx={{ height: 300 }}>
                 <Doughnut
                   data={getAnomalyDistributionData()!}
@@ -371,10 +477,61 @@ const Dashboard: React.FC = () => {
                     plugins: {
                       legend: {
                         position: 'bottom' as const,
+                        labels: {
+                          usePointStyle: true,
+                          padding: 15,
+                          font: {
+                            size: 11,
+                            weight: 'bold'
+                          }
+                        }
                       },
+                      tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                          label: function(context) {
+                            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0';
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                          }
+                        }
+                      }
                     },
+                    cutout: '50%',
+                    elements: {
+                      arc: {
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                      }
+                    }
                   }}
                 />
+              </Box>
+            ) : (
+              <Box sx={{ 
+                height: 300, 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'text.secondary',
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                borderRadius: 2,
+                border: '2px dashed',
+                borderColor: 'divider'
+              }}>
+                <Security sx={{ fontSize: 50, mb: 2, opacity: 0.3 }} />
+                <Typography variant="body1" gutterBottom textAlign="center">
+                  No Classification Data
+                </Typography>
+                <Typography variant="body2" textAlign="center" sx={{ maxWidth: 200 }}>
+                  Transaction risk levels will appear here once data is processed.
+                </Typography>
               </Box>
             )}
           </Paper>
