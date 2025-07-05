@@ -452,8 +452,8 @@ const BatchUpload: React.FC = () => {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       <Chip
-                        label={result.is_fraudulent ? 'Fraudulent' : 'Normal'}
-                        color={result.is_fraudulent ? 'error' : 'success'}
+                        label={result.is_fraudulent ? 'Requires Review' : 'Approved'}
+                        color={result.is_fraudulent ? 'warning' : 'success'}
                         size="small"
                         sx={{ fontWeight: 'medium' }}
                       />

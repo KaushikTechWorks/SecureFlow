@@ -10,6 +10,7 @@ import {
   Alert,
   Chip,
   Grid,
+  Skeleton,
   useTheme,
 } from '@mui/material';
 import {
@@ -34,6 +35,13 @@ import {
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 import StatsCard from '../components/StatsCard';
+import AnimatedProgressBar from '../components/AnimatedProgressBar';
+import LoadingSkeleton from '../components/LoadingSkeleton';
+import StaggeredAnimation from '../components/StaggeredAnimation';
+import FloatingElement from '../components/FloatingElement';
+import AnimatedChartWrapper from '../components/AnimatedChartWrapper';
+import ChartSkeleton from '../components/ChartSkeleton';
+import SegmentedProgress from '../components/SegmentedProgress';
 
 ChartJS.register(
   CategoryScale,
@@ -151,11 +159,43 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
-        <CircularProgress size={60} />
-        <Typography variant="h6" sx={{ mt: 2 }}>
-          Loading dashboard data...
-        </Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <StaggeredAnimation delay={0} triggerOnScroll={false}>
+          <Box sx={{ mb: 4 }}>
+            <Skeleton variant="text" width="300px" height={40} sx={{ mb: 2 }} />
+            <Skeleton variant="text" width="500px" height={20} />
+          </Box>
+        </StaggeredAnimation>
+        
+        {/* Loading Stats Cards */}
+        <Box 
+          sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { 
+              xs: '1fr', 
+              sm: '1fr 1fr', 
+              md: '1fr 1fr 1fr 1fr' 
+            },
+            gap: 3, 
+            mb: 6 
+          }}
+        >
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StaggeredAnimation key={index} delay={index * 0.1} triggerOnScroll={false}>
+              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 3 }} />
+            </StaggeredAnimation>
+          ))}
+        </Box>
+
+        {/* Loading Charts */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <StaggeredAnimation delay={0.2} triggerOnScroll={false} sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
+            <ChartSkeleton type="bar" height={450} />
+          </StaggeredAnimation>
+          <StaggeredAnimation delay={0.3} triggerOnScroll={false} sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
+            <ChartSkeleton type="doughnut" height={450} />
+          </StaggeredAnimation>
+        </Box>
       </Container>
     );
   }
@@ -181,28 +221,43 @@ const Dashboard: React.FC = () => {
           mb: 4,
           borderBottom: '1px solid',
           borderColor: 'divider',
-          backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))'
+          backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))',
+          overflow: 'hidden',
+          position: 'relative'
         }}
       >
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ mb: { xs: 3, md: 0 } }}>
-              <Typography variant="h3" fontWeight="bold" color="primary">
-                SecureFlow Dashboard
-              </Typography>
-              <Typography variant="body1" sx={{ mt: 1 }} color="text.secondary">
-                Real-time analytics and insights from transaction anomaly detection
-              </Typography>
-            </Box>
-            <Box>
-              <Chip 
-                icon={<Assessment />} 
-                label="LAST 7 DAYS" 
-                color="primary" 
-                variant="outlined"
-                sx={{ fontWeight: 'medium' }}
-              />
-            </Box>
+            <StaggeredAnimation delay={0.1} direction="left" triggerOnScroll={false}>
+              <Box sx={{ mb: { xs: 3, md: 0 } }}>
+                <FloatingElement intensity="subtle" speed={4}>
+                  <Typography variant="h3" fontWeight="bold" color="primary">
+                    SecureFlow Dashboard
+                  </Typography>
+                </FloatingElement>
+                <Typography variant="body1" sx={{ mt: 1 }} color="text.secondary">
+                  Real-time analytics and insights from transaction anomaly detection
+                </Typography>
+              </Box>
+            </StaggeredAnimation>
+            <StaggeredAnimation delay={0.3} direction="right" triggerOnScroll={false}>
+              <Box>
+                <Chip 
+                  icon={<Assessment />} 
+                  label="LAST 7 DAYS" 
+                  color="primary" 
+                  variant="outlined"
+                  sx={{ 
+                    fontWeight: 'medium',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                    }
+                  }}
+                />
+              </Box>
+            </StaggeredAnimation>
           </Box>
         </Container>
       </Box>
@@ -221,73 +276,102 @@ const Dashboard: React.FC = () => {
             mb: 6 
           }}
         >
-          <StatsCard
-            title="Total Transactions"
-            value={data?.stats?.total_transactions || 0}
-            icon={Assessment}
-            color="primary"
-            subtitle="All processed transactions"
-          />
+          <StaggeredAnimation delay={0.1} direction="up">
+            <StatsCard
+              title="Total Transactions"
+              value={data?.stats?.total_transactions || 0}
+              icon={Assessment}
+              color="primary"
+              subtitle="All processed transactions"
+            />
+          </StaggeredAnimation>
           
-          <StatsCard
-            title="Anomalies Detected"
-            value={data?.stats?.anomalies_detected || 0}
-            icon={Warning}
-            color="error"
-            subtitle="Flagged as suspicious"
-          />
+          <StaggeredAnimation delay={0.2} direction="up">
+            <StatsCard
+              title="Anomalies Detected"
+              value={data?.stats?.anomalies_detected || 0}
+              icon={Warning}
+              color="error"
+              subtitle="Flagged as suspicious"
+            />
+          </StaggeredAnimation>
           
-          <StatsCard
-            title="Anomaly Rate"
-            value={`${data?.stats?.anomaly_rate?.toFixed(1) || 0}%`}
-            icon={TrendingUp}
-            color="warning"
-            subtitle="Detection percentage"
-          />
+          <StaggeredAnimation delay={0.3} direction="up">
+            <StatsCard
+              title="Anomaly Rate"
+              value={`${data?.stats?.anomaly_rate?.toFixed(1) || 0}%`}
+              icon={TrendingUp}
+              color="warning"
+              subtitle="Detection percentage"
+            />
+          </StaggeredAnimation>
           
-          <StatsCard
-            title="System Accuracy"
-            value={`${data?.feedback?.accuracy?.toFixed(1) || 0}%`}
-            icon={CheckCircle}
-            color="success"
-            subtitle="Feedback accuracy"
-          />
+          <StaggeredAnimation delay={0.4} direction="up">
+            <StatsCard
+              title="System Accuracy"
+              value={`${data?.feedback?.accuracy?.toFixed(1) || 0}%`}
+              icon={CheckCircle}
+              color="success"
+              subtitle="Feedback accuracy"
+            />
+          </StaggeredAnimation>
         </Box>
 
       {/* Charts */}
-      <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
-        Transaction Analytics
-      </Typography>
+      <StaggeredAnimation delay={0.2}>
+        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
+          Transaction Analytics
+        </Typography>
+      </StaggeredAnimation>
       
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-        <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
+        <StaggeredAnimation delay={0.3} sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
           <Paper 
             elevation={3} 
             sx={{ 
               p: 3, 
               borderRadius: 3,
               height: '100%',
-              backgroundImage: 'linear-gradient(to bottom, rgba(37, 99, 235, 0.02), rgba(255, 255, 255, 0))'
+              backgroundImage: 'linear-gradient(to bottom, rgba(37, 99, 235, 0.02), rgba(255, 255, 255, 0))',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.12)'
+              }
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" fontWeight="medium">
-                Hourly Transaction Distribution
-              </Typography>
+              <FloatingElement intensity="subtle" speed={5}>
+                <Typography variant="h6" fontWeight="medium">
+                  Hourly Transaction Distribution
+                </Typography>
+              </FloatingElement>
               <Chip 
                 label="Last 24 Hours" 
                 size="small" 
                 color="primary" 
                 variant="outlined"
+                sx={{
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'scale(1.05)'
+                  }
+                }}
               />
             </Box>
             {getHourlyChartData() ? (
-              <Box sx={{ height: 400 }}>
-                <Bar
-                  data={getHourlyChartData()!}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
+              <AnimatedChartWrapper animationType="drawIn" delay={0.2} duration={1.5}>
+                <Box sx={{ height: 400 }}>
+                  <Bar
+                    data={getHourlyChartData()!}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      animation: {
+                        duration: 1200,
+                        easing: 'easeOutCubic',
+                        delay: (context) => context.dataIndex * 50,
+                      },
                     plugins: {
                       legend: {
                         position: 'top' as const,
@@ -359,6 +443,7 @@ const Dashboard: React.FC = () => {
                   }}
                 />
               </Box>
+              </AnimatedChartWrapper>
             ) : (
               <Box sx={{ 
                 height: 400, 
@@ -382,20 +467,40 @@ const Dashboard: React.FC = () => {
               </Box>
             )}
           </Paper>
-        </Box>
+        </StaggeredAnimation>
         
-        <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
-          <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Transaction Classification
-            </Typography>
+        <StaggeredAnimation delay={0.4} sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              p: 3, 
+              height: '100%',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.12)'
+              }
+            }}
+          >
+            <FloatingElement intensity="subtle" speed={6}>
+              <Typography variant="h6" gutterBottom>
+                Transaction Classification
+              </Typography>
+            </FloatingElement>
             {getAnomalyDistributionData() ? (
-              <Box sx={{ height: 300 }}>
-                <Doughnut
-                  data={getAnomalyDistributionData()!}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
+              <AnimatedChartWrapper animationType="scaleIn" delay={0.3} duration={1.0}>
+                <Box sx={{ height: 300 }}>
+                  <Doughnut
+                    data={getAnomalyDistributionData()!}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      animation: {
+                        duration: 1000,
+                        easing: 'easeOutBack',
+                        animateRotate: true,
+                        animateScale: true,
+                      },
                     plugins: {
                       legend: {
                         position: 'bottom' as const,
@@ -434,6 +539,7 @@ const Dashboard: React.FC = () => {
                   }}
                 />
               </Box>
+              </AnimatedChartWrapper>
             ) : (
               <Box sx={{ 
                 height: 300, 
@@ -457,16 +563,28 @@ const Dashboard: React.FC = () => {
               </Box>
             )}
           </Paper>
-        </Box>
+        </StaggeredAnimation>
       </Box>
 
       {/* Additional Stats */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mt: 3 }}>
-        <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Model Performance
-            </Typography>
+        <StaggeredAnimation delay={0.5} sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              p: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+              }
+            }}
+          >
+            <FloatingElement intensity="subtle" speed={7}>
+              <Typography variant="h6" gutterBottom>
+                Model Performance
+              </Typography>
+            </FloatingElement>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="body1">Average Anomaly Score:</Typography>
               <Typography variant="body1" fontWeight="bold">
@@ -486,33 +604,60 @@ const Dashboard: React.FC = () => {
               </Typography>
             </Box>
           </Paper>
-        </Box>
+        </StaggeredAnimation>
         
-        <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Transaction Overview
-            </Typography>
+        <StaggeredAnimation delay={0.6} sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              p: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+              }
+            }}
+          >
+            <FloatingElement intensity="subtle" speed={8}>
+              <Typography variant="h6" gutterBottom>
+                Transaction Overview
+              </Typography>
+            </FloatingElement>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="body1">Total Feedback:</Typography>
               <Typography variant="body1" fontWeight="bold">
                 {data?.feedback?.total_feedback || 0}
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
               <Typography variant="body1">Positive Feedback:</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
                 {data?.feedback?.positive_feedback || 0}
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body1">Feedback Accuracy:</Typography>
-              <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.feedback?.accuracy?.toFixed(1) || 0}%
-              </Typography>
+            
+            {/* Progress indicators */}
+            <SegmentedProgress
+              value={data?.feedback?.accuracy || 0}
+              max={100}
+              label="Feedback Accuracy"
+              color="success"
+              segments={8}
+              animationDuration={1800}
+            />
+            
+            <Box sx={{ mt: 2 }}>
+              <SegmentedProgress
+                value={(data?.feedback?.positive_feedback || 0) / Math.max(data?.feedback?.total_feedback || 1, 1) * 100}
+                max={100}
+                label="Positive Feedback Rate"
+                color="primary"
+                segments={6}
+                animationDuration={1500}
+              />
             </Box>
           </Paper>
-        </Box>
+        </StaggeredAnimation>
       </Box>
     </Container>
     </>

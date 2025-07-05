@@ -21,6 +21,10 @@ import { TrendingUp, TrendingDown, Security, Speed } from '@mui/icons-material';
 import SecurityIcon from '@mui/icons-material/Security';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import AnimatedBackground from '../components/AnimatedBackground';
+import GlassCard from '../components/GlassCard';
+import EnhancedButton from '../components/EnhancedButton';
+import ParticleBackground from '../components/ParticleBackground';
 
 interface PredictionResult {
   is_fraudulent: boolean;
@@ -122,25 +126,41 @@ const Home: React.FC = () => {
           pb: 8,
           mb: 6,
           backgroundImage: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
-          clipPath: 'polygon(0 0, 100% 0, 100% 85%, 0 100%)'
+          clipPath: 'polygon(0 0, 100% 0, 100% 85%, 0 100%)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        <ParticleBackground particleCount={25} />
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center' }}>
             <Box sx={{ flex: 1, pr: { md: 4 }, mb: { xs: 4, md: 0 } }}>
-              <Typography variant="h2" gutterBottom fontWeight="bold">
+              <Typography 
+                variant="h2" 
+                gutterBottom 
+                fontWeight="bold"
+                className="fade-in-up"
+                sx={{ 
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                }}
+              >
                 Secure Your Financial Transactions
               </Typography>
-              <Typography variant="h5" sx={{ mb: 4, opacity: 0.9 }} fontWeight="normal">
+              <Typography 
+                variant="h5" 
+                sx={{ mb: 4, opacity: 0.9 }} 
+                fontWeight="normal"
+                className="fade-in-up"
+              >
                 Advanced machine learning detection with 95% accuracy and real-time alerts
               </Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button 
-                  variant="contained" 
-                  color="secondary" 
+                <EnhancedButton 
+                  variant="glow"
                   size="large" 
                   component={RouterLink} 
                   to="/batch"
+                  glowColor="#ffffff"
                   sx={{ 
                     px: 4, 
                     py: 1.5,
@@ -153,7 +173,7 @@ const Home: React.FC = () => {
                   }}
                 >
                   Try Batch Upload
-                </Button>
+                </EnhancedButton>
                 <Button 
                   variant="outlined" 
                   size="large" 
@@ -464,8 +484,8 @@ const Home: React.FC = () => {
               <Box>
                 <Box sx={{ mb: 3, textAlign: 'center' }}>
                   <Chip
-                    label={result.is_fraudulent ? 'SUSPICIOUS TRANSACTION' : 'NORMAL TRANSACTION'}
-                    color={result.is_fraudulent ? 'error' : 'success'}
+                    label={result.is_fraudulent ? 'TRANSACTION REQUIRES REVIEW' : 'TRANSACTION APPROVED'}
+                    color={result.is_fraudulent ? 'warning' : 'success'}
                     size="medium"
                     sx={{ fontSize: '1rem', py: 2 }}
                   />
@@ -477,7 +497,7 @@ const Home: React.FC = () => {
                       Risk Level
                     </Typography>
                     <Typography variant="h6">
-                      {result.is_fraudulent ? 'High Risk' : 'Low Risk'}
+                      {result.is_fraudulent ? 'Elevated Risk' : 'Low Risk'}
                     </Typography>
                   </Box>
                   <Box sx={{ flex: '1 1 48%' }}>

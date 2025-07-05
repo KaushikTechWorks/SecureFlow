@@ -367,7 +367,7 @@ const Feedback: React.FC = () => {
                         Enhances Detection
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Helps catch sophisticated fraud
+                        Helps identify sophisticated anomalies
                       </Typography>
                     </Box>
                   </Box>
