@@ -20,22 +20,38 @@ import {
   Divider,
   useTheme,
 } from '@mui/material';
-import { CloudUpload, Download, Article, CheckCircle, Warning } from '@mui/icons-material';
+import { CloudUpload, Download, Article, CheckCircle } from '@mui/icons-material';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 
+// Category mappings (same as in Home.tsx)
+const merchantCategories = [
+  'Grocery', 'Gas Station', 'Restaurant', 'Retail', 'Online',
+  'ATM', 'Bank', 'Healthcare', 'Entertainment', 'Other'
+];
+
+const transactionTypes = ['Purchase', 'Withdrawal', 'Transfer'];
+
 interface BatchResult {
-  index: number;
-  transaction_id?: number;
-  is_anomaly?: boolean;
-  anomaly_score?: number;
-  confidence?: number;
-  error?: string;
+  transaction_id: string;
+  is_fraudulent: boolean;
+  confidence: number;
+  risk_factors: {
+    high_amount: boolean;
+    unusual_time: boolean;
+    risky_category: boolean;
+  };
 }
 
 interface BatchResponse {
   results: BatchResult[];
-  total_processed: number;
+  batch_summary: {
+    total_transactions: number;
+    successful_predictions: number;
+    fraudulent_detected: number;
+    fraud_rate: number;
+  };
+  data_source: string;
   timestamp: string;
 }
 
@@ -80,6 +96,12 @@ const BatchUpload: React.FC = () => {
           const value = values[index];
           if (header === 'amount') {
             transaction[header] = parseFloat(value);
+          } else if (header === 'merchant_category') {
+            const categoryIndex = parseInt(value);
+            transaction[header] = merchantCategories[categoryIndex]?.toLowerCase() || 'other';
+          } else if (header === 'transaction_type') {
+            const typeIndex = parseInt(value);
+            transaction[header] = transactionTypes[typeIndex]?.toLowerCase() || 'purchase';
           } else {
             transaction[header] = parseInt(value);
           }
@@ -137,7 +159,7 @@ const BatchUpload: React.FC = () => {
 
   const getAnomalyRate = () => {
     if (!results) return 0;
-    const anomalies = results.results.filter(r => r.is_anomaly).length;
+    const anomalies = results.results.filter(r => r.is_fraudulent).length;
     return (anomalies / results.results.length) * 100;
   };
 
@@ -371,10 +393,9 @@ const BatchUpload: React.FC = () => {
             }}>
               <Typography variant="body2" color="text.secondary">
                 Total Processed
-              </Typography>
-              <Typography variant="h4" fontWeight="bold">
-                {results.total_processed}
-              </Typography>
+              </Typography>                <Typography variant="h4" fontWeight="bold">
+                  {results.batch_summary.total_transactions}
+                </Typography>
             </Box>
             
             <Box sx={{ 
@@ -387,10 +408,9 @@ const BatchUpload: React.FC = () => {
             }}>
               <Typography variant="body2" color="text.secondary">
                 Anomalies Detected
-              </Typography>
-              <Typography variant="h4" fontWeight="bold" color="error.main">
-                {results.results.filter(r => r.is_anomaly).length}
-              </Typography>
+              </Typography>                <Typography variant="h4" fontWeight="bold" color="error.main">
+                  {results.batch_summary.fraudulent_detected}
+                </Typography>
             </Box>
             
             <Box sx={{ 
@@ -415,7 +435,7 @@ const BatchUpload: React.FC = () => {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 'bold' }}>Index</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Anomaly Score</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Risk Factors</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Confidence</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
                 </TableRow>
@@ -425,37 +445,42 @@ const BatchUpload: React.FC = () => {
                   <TableRow 
                     key={index} 
                     sx={{ 
-                      bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
-                      '&:hover': { bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+                      bgcolor: result.is_fraudulent ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
+                      '&:hover': { bgcolor: result.is_fraudulent ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
                     }}
                   >
-                    <TableCell>{result.index}</TableCell>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      {result.error ? (
-                        <Chip 
-                          icon={<Warning fontSize="small" />} 
-                          label="Error" 
-                          color="error" 
-                          size="small" 
-                          sx={{ fontWeight: 'medium' }}
-                        />
-                      ) : (
-                        <Chip
-                          label={result.is_anomaly ? 'Suspicious' : 'Normal'}
-                          color={result.is_anomaly ? 'error' : 'success'}
-                          size="small"
-                          sx={{ fontWeight: 'medium' }}
-                        />
-                      )}
+                      <Chip
+                        label={result.is_fraudulent ? 'Fraudulent' : 'Normal'}
+                        color={result.is_fraudulent ? 'error' : 'success'}
+                        size="small"
+                        sx={{ fontWeight: 'medium' }}
+                      />
                     </TableCell>
                     <TableCell>
-                      {result.anomaly_score ? result.anomaly_score.toFixed(3) : 'N/A'}
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {result.risk_factors.high_amount && (
+                          <Chip label="High Amount" size="small" color="warning" />
+                        )}
+                        {result.risk_factors.unusual_time && (
+                          <Chip label="Unusual Time" size="small" color="warning" />
+                        )}
+                        {result.risk_factors.risky_category && (
+                          <Chip label="Risky Category" size="small" color="warning" />
+                        )}
+                        {!result.risk_factors.high_amount && !result.risk_factors.unusual_time && !result.risk_factors.risky_category && (
+                          <Typography variant="body2" color="text.secondary">None</Typography>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      {result.confidence ? `${(result.confidence * 100).toFixed(1)}%` : 'N/A'}
+                      {`${(result.confidence * 100).toFixed(1)}%`}
                     </TableCell>
                     <TableCell>
-                      {result.transaction_id || (result.error ? result.error : 'N/A')}
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                        {result.transaction_id}
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -74,8 +74,8 @@ const Home: React.FC = () => {
         amount: parseFloat(formData.amount),
         hour: parseInt(formData.hour),
         day_of_week: parseInt(formData.day_of_week),
-        merchant_category: parseInt(formData.merchant_category),
-        transaction_type: parseInt(formData.transaction_type),
+        merchant_category: merchantCategories[parseInt(formData.merchant_category)].toLowerCase(),
+        transaction_type: transactionTypes[parseInt(formData.transaction_type)].toLowerCase(),
       };
 
       const response = await axios.post(API_CONFIG.ENDPOINTS.PREDICT, payload);
