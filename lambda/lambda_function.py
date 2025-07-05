@@ -79,19 +79,20 @@ def init_database():
                     transaction_id, amount, hour, day_of_week, 
                     merchant_category, transaction_type, anomaly_score, 
                     is_anomaly, timestamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', [
-                transaction_id,
-                amount,
-                random.randint(0, 23),
-                random.randint(0, 6),
-                random.choice(categories),
-                random.choice(types),
-                random.uniform(-1, 1),
-                is_anomaly,
-                datetime.now() - timedelta(days=random.randint(0, 30))
-            ])
+                ) VALUES (:transaction_id, :amount, :hour, :day_of_week, :merchant_category, :transaction_type, :anomaly_score, :is_anomaly, :timestamp)
+            ''', 
+                transaction_id=transaction_id,
+                amount=amount,
+                hour=random.randint(0, 23),
+                day_of_week=random.randint(0, 6),
+                merchant_category=random.choice(categories),
+                transaction_type=random.choice(types),
+                anomaly_score=random.uniform(-1, 1),
+                is_anomaly=is_anomaly,
+                timestamp=datetime.now() - timedelta(days=random.randint(0, 30))
+            )
         
+        conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
         
@@ -310,18 +311,19 @@ def handle_predict(event, context):
                     transaction_id, amount, hour, day_of_week, 
                     merchant_category, transaction_type, anomaly_score, 
                     is_anomaly, timestamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', [
-                transaction_id,
-                amount,
-                hour,
-                body['day_of_week'],
-                merchant_category,
-                body['transaction_type'],
-                risk_score,
-                is_fraudulent,
-                datetime.now()
-            ])
+                ) VALUES (:transaction_id, :amount, :hour, :day_of_week, :merchant_category, :transaction_type, :anomaly_score, :is_anomaly, :timestamp)
+            ''',
+                transaction_id=transaction_id,
+                amount=amount,
+                hour=hour,
+                day_of_week=body['day_of_week'],
+                merchant_category=merchant_category,
+                transaction_type=body['transaction_type'],
+                anomaly_score=risk_score,
+                is_anomaly=is_fraudulent,
+                timestamp=datetime.now()
+            )
+            conn.commit()
             conn.close()
             
         except Exception as db_error:
@@ -535,18 +537,19 @@ def handle_predict_batch(event, context):
                             transaction_id, amount, hour, day_of_week, 
                             merchant_category, transaction_type, anomaly_score, 
                             is_anomaly, timestamp
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, [
-                    transaction_id,
-                    amount,
-                    hour,
-                    transaction['day_of_week'],
-                    merchant_category,
-                    transaction['transaction_type'],
-                    risk_score,
-                    is_fraudulent,
-                    datetime.now()
-                    ])
+                        ) VALUES (:transaction_id, :amount, :hour, :day_of_week, :merchant_category, :transaction_type, :anomaly_score, :is_anomaly, :timestamp)
+                    """,
+                    transaction_id=transaction_id,
+                    amount=amount,
+                    hour=hour,
+                    day_of_week=transaction['day_of_week'],
+                    merchant_category=merchant_category,
+                    transaction_type=transaction['transaction_type'],
+                    anomaly_score=risk_score,
+                    is_anomaly=is_fraudulent,
+                    timestamp=datetime.now()
+                    )
+                    conn.commit()
                     conn.close()
                 except Exception as db_error:
                     logger.warning(f"Could not store batch prediction {i} in database: {db_error}")
