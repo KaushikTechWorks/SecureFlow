@@ -1,0 +1,3 @@
+# Production requirements for AWS Lambda
+# Pure Python packages only for easier deployment
+pg8000==1.30.3

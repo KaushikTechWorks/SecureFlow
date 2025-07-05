@@ -1,0 +1,4 @@
+# Local development requirements
+# Includes Flask for local server and psycopg2 for better PostgreSQL support
+Flask==2.3.3
+psycopg2-binary==2.9.9

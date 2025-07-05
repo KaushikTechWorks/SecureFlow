@@ -1,2 +1,10 @@
-# Lambda function requirements - minimal for now
-boto3==1.28.85
+# Main requirements file for SecureFlow Lambda
+# For production deployment, use: requirements-production.txt
+# For local development, use: requirements-local.txt
+
+# Core production dependency (pure Python for Lambda)
+pg8000==1.30.3
+
+# Optional local development dependencies (install separately)
+# Flask==2.3.3
+# psycopg2-binary==2.9.9
