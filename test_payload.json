@@ -1,0 +1,12 @@
+{
+  "httpMethod": "GET",
+  "path": "/api/health",
+  "headers": {},
+  "queryStringParameters": {},
+  "body": null,
+  "isBase64Encoded": false,
+  "requestContext": {
+    "httpMethod": "GET",
+    "path": "/prod/api/health"
+  }
+}

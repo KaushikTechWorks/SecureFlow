@@ -1,0 +1,265 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SecureFlow Backend Infrastructure - Lambda + API Gateway + PostgreSQL'
+
+Parameters:
+  DBPassword:
+    Description: Password for PostgreSQL database
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Default: "SecureFlow2024!"
+  
+  Environment:
+    Description: Environment name (dev, staging, prod)
+    Type: String
+    Default: "prod"
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # VPC for RDS (Lambda uses default VPC)
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-vpc-${Environment}"
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-private-subnet-1-${Environment}"
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-private-subnet-2-${Environment}"
+
+  # Security Group for RDS
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "secureflow-database-sg-${Environment}"
+      GroupDescription: Security group for PostgreSQL database
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+          Description: PostgreSQL access
+
+  # RDS Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for SecureFlow RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-db-subnet-group-${Environment}"
+
+  # RDS PostgreSQL Instance
+  PostgreSQLDB:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "secureflow-postgres-${Environment}"
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '15.4'
+      MasterUsername: postgres
+      MasterUserPassword: !Ref DBPassword
+      AllocatedStorage: 20
+      StorageType: gp2
+      DBName: secureflow
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      BackupRetentionPeriod: 7
+      StorageEncrypted: true
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-postgres-${Environment}"
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "secureflow-lambda-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RDSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds:DescribeDBInstances
+                  - rds:DescribeDBClusters
+                Resource: "*"
+
+  # Lambda Function
+  SecureFlowLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "secureflow-api-${Environment}"
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                  'body': json.dumps({'message': 'SecureFlow Backend Lambda function created successfully!'})
+              }
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          DATABASE_URL: !Sub 
+            - "postgresql://postgres:${DBPassword}@${DBEndpoint}:5432/secureflow"
+            - DBEndpoint: !GetAtt PostgreSQLDB.Endpoint.Address
+              DBPassword: !Ref DBPassword
+          ENVIRONMENT: !Ref Environment
+
+  # API Gateway
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "secureflow-api-${Environment}"
+      Description: SecureFlow API Gateway
+      EndpointConfiguration:
+        Types: [REGIONAL]
+
+  # API Gateway Resources and Methods
+  ApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: api
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref ApiResource
+      PathPart: health
+
+  # Lambda Permission for API Gateway
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/*/*"
+
+  # API Gateway Methods (Health Check)
+  HealthMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowLambda.Arn}/invocations"
+
+  # API Gateway CORS for Health
+  HealthOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref HealthResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: [HealthMethod, HealthOptionsMethod]
+    Properties:
+      RestApiId: !Ref RestApi
+      StageName: prod
+
+Outputs:
+  # Backend Outputs
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiGatewayUrl"
+
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref SecureFlowLambda
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunctionName"
+
+  # Database Outputs
+  DatabaseEndpoint:
+    Description: PostgreSQL database endpoint
+    Value: !GetAtt PostgreSQLDB.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseEndpoint"
+
+  DatabasePort:
+    Description: PostgreSQL database port
+    Value: !GetAtt PostgreSQLDB.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabasePort"
+
+  # Test URLs
+  HealthCheckUrl:
+    Description: Health check endpoint
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api/health"
+    Export:
+      Name: !Sub "${AWS::StackName}-HealthCheckUrl"
