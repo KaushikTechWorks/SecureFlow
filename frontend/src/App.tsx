@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import './App.css';
@@ -98,20 +98,37 @@ const theme = createTheme({
   },
 });
 
+function AppContent() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if we have a redirect path from the 404.html page
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    if (redirectPath) {
+      sessionStorage.removeItem('redirectPath');
+      navigate(redirectPath, { replace: true });
+    }
+  }, [navigate]);
+
+  return (
+    <div className="App">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/batch" element={<BatchUpload />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/feedback" element={<Feedback />} />
+      </Routes>
+    </div>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <div className="App">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/batch" element={<BatchUpload />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/feedback" element={<Feedback />} />
-          </Routes>
-        </div>
+        <AppContent />
       </Router>
     </ThemeProvider>
   );
