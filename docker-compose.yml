@@ -1,0 +1,62 @@
+services:
+  # PostgreSQL Database for production
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=secureflow
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secureflow_prod_2024}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Production backend service
+  backend:
+    build: ./backend
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-secureflow_prod_2024}@postgres:5432/secureflow
+      # Simulating Lambda environment
+      - AWS_LAMBDA_FUNCTION_NAME=secureflow-api
+      - AWS_LAMBDA_FUNCTION_VERSION=$LATEST
+      - AWS_REGION=us-east-1
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development simulation of the S3-hosted frontend
+  frontend:
+    build: 
+      context: ./frontend
+      args:
+        # Use AWS API Gateway URL by default, or local backend for development
+        REACT_APP_API_URL: ${API_URL:-https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod}
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=${API_URL:-https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  backend_data:
+  postgres_data:
