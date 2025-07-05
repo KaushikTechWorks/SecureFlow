@@ -73,3 +73,5 @@ coverage/
 
 # Local database files (for development)
 *.db-journal
+lambda/package/
+lambda/*.zip
