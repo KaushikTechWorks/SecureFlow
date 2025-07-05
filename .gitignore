@@ -28,7 +28,9 @@ dist/
 *.key
 
 # AWS generated files  
-aws/ecs-task-definition-updated.json*
+# Backup files
+aws/infrastructure-ecs-backup.yml
+aws/ecs-*
 
 # IDE files
 .vscode/

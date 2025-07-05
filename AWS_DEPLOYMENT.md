@@ -1,240 +1,244 @@
-# SecureFlow AWS ECS Deployment Guide
+# SecureFlow AWS Deployment Guide
 
-This guide will help you deploy the SecureFlow application to AWS using Docker containers and Amazon ECS (Elastic Container Service).
+This guide covers deploying SecureFlow using the modern serverless architecture:
+- **Frontend**: CloudFront + S3 (Static Website)
+- **Backend**: Lambda + API Gateway + PostgreSQL RDS
+
+## Architecture Overview
+
+```
+Internet → CloudFront → S3 (Frontend)
+                    → API Gateway → Lambda → PostgreSQL RDS (Backend)
+```
 
 ## Prerequisites
 
-1. **AWS CLI installed and configured**
+1. **AWS CLI configured**
    ```bash
    aws configure
+   # Enter your AWS Access Key, Secret Key, Region (us-east-1), and output format (json)
    ```
 
-2. **Docker installed**
+2. **Node.js and npm** (for frontend build)
    ```bash
-   docker --version
+   node --version  # Should be 16+
+   npm --version
    ```
 
-3. **AWS Account with appropriate permissions**
-   - ECS Full Access
-   - ECR Full Access
-   - CloudFormation Full Access
-   - IAM permissions for role creation
-   - VPC and Load Balancer permissions
-
-## Deployment Architecture
-
-```
-Internet → Application Load Balancer → ECS Service (Fargate)
-                                    ├── Frontend Container (nginx:80)
-                                    └── Backend Container (python:5001)
-```
+3. **Python 3.11** (for Lambda function)
+   ```bash
+   python3 --version
+   ```
 
 ## Quick Deployment
 
 ### Option 1: Automated Deployment (Recommended)
 
-1. **Clone and navigate to the project**
-   ```bash
-   git clone https://github.com/KaushikTechWorks/SecureFlow.git
-   cd SecureFlow
-   ```
+```bash
+# Make deployment script executable
+chmod +x scripts/deploy-to-aws.sh
 
-2. **Configure AWS region** (Edit `scripts/deploy-to-aws.sh`)
-   ```bash
-   AWS_REGION="us-east-1"  # Change to your preferred region
-   ```
+# Deploy everything
+./scripts/deploy-to-aws.sh
+```
 
-3. **Run deployment script**
-   ```bash
-   chmod +x scripts/deploy-to-aws.sh
-   ./scripts/deploy-to-aws.sh
-   ```
-
-4. **Access your application**
-   - The script will output the Application Load Balancer URL
-   - Wait 3-5 minutes for the service to become healthy
+This script will:
+1. ✅ Deploy AWS infrastructure (CloudFormation)
+2. ✅ Build and deploy frontend to S3
+3. ✅ Deploy Lambda function with PostgreSQL support
+4. ✅ Invalidate CloudFront cache
+5. ✅ Test the deployment
 
 ### Option 2: Manual Step-by-Step Deployment
 
 #### Step 1: Deploy Infrastructure
+
 ```bash
 aws cloudformation deploy \
   --template-file aws/infrastructure.yml \
-  --stack-name secureflow-infrastructure \
+  --stack-name secureflow-production \
+  --parameter-overrides Environment=prod DBPassword="YourSecurePassword123!" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-east-1
 ```
 
-#### Step 2: Build and Push Docker Images
+#### Step 2: Get Stack Outputs
+
 ```bash
-# Get ECR login
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+# Get S3 bucket name
+S3_BUCKET=$(aws cloudformation describe-stacks \
+  --stack-name secureflow-production \
+  --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
+  --output text)
 
-# Build and push backend
-docker build -t secureflow-backend ./backend
-docker tag secureflow-backend:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/secureflow-backend:latest
-docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/secureflow-backend:latest
+# Get API Gateway URL
+API_URL=$(aws cloudformation describe-stacks \
+  --stack-name secureflow-production \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+  --output text)
 
-# Build and push frontend
-docker build -t secureflow-frontend ./frontend
-docker tag secureflow-frontend:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/secureflow-frontend:latest
-docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/secureflow-frontend:latest
+# Get CloudFront Distribution ID
+CLOUDFRONT_ID=$(aws cloudformation describe-stacks \
+  --stack-name secureflow-production \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
+  --output text)
+
+echo "S3 Bucket: $S3_BUCKET"
+echo "API URL: $API_URL"
+echo "CloudFront ID: $CLOUDFRONT_ID"
 ```
 
-#### Step 3: Deploy ECS Service
+#### Step 3: Deploy Frontend
+
 ```bash
-# Update task definition with your account ID and region
-# Register task definition
-aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition.json
+cd frontend
 
-# Create ECS service
-aws ecs create-service \
-  --cluster secureflow-cluster \
-  --service-name secureflow-service \
-  --task-definition secureflow-task:1 \
-  --desired-count 1 \
-  --launch-type FARGATE
+# Install dependencies and build
+npm install
+REACT_APP_API_URL=$API_URL npm run build
+
+# Deploy to S3
+aws s3 sync build/ s3://$S3_BUCKET --delete
+
+cd ..
 ```
 
-## Configuration
+#### Step 4: Deploy Lambda Function
 
-### Environment Variables
+```bash
+cd lambda
 
-**Frontend (.env.production):**
+# Create deployment package
+mkdir deploy_package
+cp lambda_function_postgres.py deploy_package/lambda_function.py
+cp requirements_postgres.txt deploy_package/requirements.txt
+
+cd deploy_package
+pip install -r requirements.txt -t .
+zip -r ../lambda-deployment.zip . -x "*.pyc" "*__pycache__*"
+cd ..
+
+# Update Lambda function
+LAMBDA_FUNCTION=$(aws cloudformation describe-stacks \
+  --stack-name secureflow-production \
+  --query 'Stacks[0].Outputs[?OutputKey==`LambdaFunctionName`].OutputValue' \
+  --output text)
+
+aws lambda update-function-code \
+  --function-name $LAMBDA_FUNCTION \
+  --zip-file fileb://lambda-deployment.zip
+
+# Cleanup
+rm -rf deploy_package lambda-deployment.zip
+cd ..
 ```
-REACT_APP_API_URL=http://your-load-balancer-url:5001
-REACT_APP_ENV=production
+
+#### Step 5: Invalidate CloudFront Cache
+
+```bash
+aws cloudfront create-invalidation \
+  --distribution-id $CLOUDFRONT_ID \
+  --paths "/*"
 ```
 
-**Backend:**
-- `FLASK_ENV=production`
-- `DATABASE_URL=sqlite:///secureflow.db`
+## Architecture Components
 
-### AWS Resources Created
+### 1. Frontend (CloudFront + S3)
+- **S3**: Hosts static React application files
+- **CloudFront**: Global CDN for fast content delivery
+- **Domain**: Custom domain support (optional)
 
-1. **VPC with 2 public subnets**
-2. **Application Load Balancer**
-3. **ECS Cluster (Fargate)**
-4. **ECR Repositories** (frontend & backend)
-5. **IAM Roles** (Task Execution & Task roles)
-6. **Security Groups**
-7. **CloudWatch Log Groups**
+### 2. Backend (Lambda + API Gateway + PostgreSQL)
+- **API Gateway**: RESTful API endpoints
+- **Lambda**: Serverless compute for business logic
+- **PostgreSQL RDS**: Managed database for transactions and feedback
+
+### 3. Security
+- **IAM Roles**: Least privilege access
+- **VPC**: Database isolation
+- **HTTPS**: End-to-end encryption
+- **CORS**: Proper cross-origin configuration
+
+## Environment Variables
+
+The Lambda function uses these environment variables (auto-configured):
+
+```bash
+DATABASE_URL=postgresql://postgres:password@endpoint:5432/secureflow
+ENVIRONMENT=prod
+```
+
+## API Endpoints
+
+After deployment, your API will be available at:
+
+```
+https://your-api-id.execute-api.us-east-1.amazonaws.com/prod/api/health
+https://your-api-id.execute-api.us-east-1.amazonaws.com/prod/api/predict
+```
 
 ## Monitoring and Logs
 
-### View Service Status
-```bash
-aws ecs describe-services \
-  --cluster secureflow-cluster \
-  --services secureflow-service
-```
+- **CloudWatch Logs**: `/aws/lambda/secureflow-api-prod`
+- **CloudWatch Metrics**: Lambda performance and errors
+- **RDS Monitoring**: Database performance metrics
 
-### View Logs
-```bash
-# Backend logs
-aws logs tail /ecs/secureflow-backend --follow
+## Cost Optimization
 
-# Frontend logs
-aws logs tail /ecs/secureflow-frontend --follow
-```
-
-### ECS Console
-- Navigate to ECS Console in AWS
-- Select `secureflow-cluster`
-- Monitor service health and task status
+This architecture is cost-effective:
+- **Lambda**: Pay only for requests
+- **S3**: Minimal storage costs
+- **CloudFront**: Free tier available
+- **RDS**: t3.micro for development
 
 ## Scaling
 
-### Manual Scaling
-```bash
-aws ecs update-service \
-  --cluster secureflow-cluster \
-  --service secureflow-service \
-  --desired-count 3
-```
-
-### Auto Scaling (Optional)
-You can set up auto scaling policies based on:
-- CPU utilization
-- Memory utilization
-- Request count per target
-
-## Security Considerations
-
-1. **HTTPS Setup** (Recommended for production)
-   - Add SSL certificate to the load balancer
-   - Update security groups to allow HTTPS traffic
-
-2. **Database** (For production)
-   - Use RDS instead of SQLite
-   - Update environment variables
-
-3. **Secrets Management**
-   - Use AWS Secrets Manager for sensitive data
-   - Update task definition to use secrets
+The architecture automatically scales:
+- **Lambda**: Handles concurrent requests
+- **CloudFront**: Global edge locations
+- **RDS**: Can be upgraded as needed
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Service fails to start**
-   - Check CloudWatch logs
-   - Verify IAM permissions
-   - Check task definition configuration
-
-2. **Load balancer returns 503**
-   - Verify service is running
-   - Check target group health checks
-   - Ensure containers are listening on correct ports
-
-3. **Images not found**
-   - Verify ECR repository URIs
-   - Check if images were pushed successfully
+1. **Lambda timeout**: Increase timeout in infrastructure.yml
+2. **Database connection**: Check security group rules
+3. **CORS errors**: Verify API Gateway CORS configuration
+4. **Build failures**: Check Node.js/Python versions
 
 ### Useful Commands
 
 ```bash
-# Check service events
-aws ecs describe-services --cluster secureflow-cluster --services secureflow-service --query 'services[0].events'
+# Check Lambda logs
+aws logs tail /aws/lambda/secureflow-api-prod --follow
 
-# View running tasks
-aws ecs list-tasks --cluster secureflow-cluster --service-name secureflow-service
+# Test API directly
+curl https://your-api-url.amazonaws.com/prod/api/health
 
-# Get load balancer DNS
-aws elbv2 describe-load-balancers --names secureflow-alb --query 'LoadBalancers[0].DNSName'
+# Check CloudFormation stack status
+aws cloudformation describe-stacks --stack-name secureflow-production
 ```
 
 ## Cleanup
 
-To remove all AWS resources:
+To remove all resources:
 
 ```bash
-# Delete ECS service
-aws ecs update-service --cluster secureflow-cluster --service secureflow-service --desired-count 0
-aws ecs delete-service --cluster secureflow-cluster --service secureflow-service
-
 # Delete CloudFormation stack
-aws cloudformation delete-stack --stack-name secureflow-infrastructure
+aws cloudformation delete-stack --stack-name secureflow-production
 
-# Delete ECR images (optional)
-aws ecr batch-delete-image --repository-name secureflow-backend --image-ids imageTag=latest
-aws ecr batch-delete-image --repository-name secureflow-frontend --image-ids imageTag=latest
+# Empty S3 bucket first if needed
+aws s3 rm s3://your-bucket-name --recursive
 ```
-
-## Cost Optimization
-
-1. **Use Fargate Spot** for development environments
-2. **Set up scheduled scaling** to reduce costs during low usage
-3. **Use smaller instance types** for testing
-4. **Monitor CloudWatch costs** regularly
-
-## Support
-
-For issues with the deployment:
-1. Check CloudWatch logs
-2. Review AWS ECS documentation
-3. Contact AWS support for infrastructure issues
 
 ---
 
-**Note:** Replace `ACCOUNT_ID` with your actual AWS Account ID and update region as needed.
+## Next Steps
+
+1. **Custom Domain**: Set up Route 53 for custom domain
+2. **SSL Certificate**: Add ACM certificate to CloudFront
+3. **Monitoring**: Set up CloudWatch alarms
+4. **CI/CD**: Implement GitHub Actions for automated deployments
+
+🎉 **Your SecureFlow application is now running on AWS with a modern, scalable architecture!**

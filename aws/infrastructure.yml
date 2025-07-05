@@ -1,494 +1,440 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'SecureFlow Application Infrastructure'
+Description: 'SecureFlow Application Infrastructure - CloudFront + S3 + Lambda + API Gateway + PostgreSQL'
 
 Parameters:
-  VpcCIDR:
-    Description: CIDR block for the VPC
+  DomainName:
+    Description: Domain name for the application (optional)
     Type: String
-    Default: 10.0.0.0/16
+    Default: ""
   
-  PublicSubnet1CIDR:
-    Description: CIDR block for public subnet 1
+  DBPassword:
+    Description: Password for PostgreSQL database
     Type: String
-    Default: 10.0.1.0/24
+    NoEcho: true
+    MinLength: 8
+    Default: "SecureFlow2024!"
   
-  PublicSubnet2CIDR:
-    Description: CIDR block for public subnet 2
+  Environment:
+    Description: Environment name (dev, staging, prod)
     Type: String
-    Default: 10.0.2.0/24
+    Default: "prod"
+    AllowedValues: [dev, staging, prod]
 
 Resources:
-  # VPC Configuration
+  # S3 Bucket for Frontend Static Files
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "secureflow-frontend-${Environment}-${AWS::AccountId}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+
+  # S3 Bucket Policy for CloudFront
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # CloudFront Origin Access Control
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "secureflow-oac-${Environment}"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          # S3 Origin for Frontend
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !Ref OriginAccessControl
+          # API Gateway Origin for Backend
+          - Id: APIOrigin
+            DomainName: !Sub "${RestApi}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/prod"
+            CustomOriginConfig:
+              HTTPPort: 443
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: "/api/*"
+            TargetOriginId: APIOrigin
+            ViewerProtocolPolicy: https-only
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed-CachingDisabled
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD, OPTIONS]
+        Enabled: true
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        PriceClass: PriceClass_100
+        Comment: !Sub "SecureFlow ${Environment} Distribution"
+
+  # RDS Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for SecureFlow RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-db-subnet-group-${Environment}"
+
+  # RDS PostgreSQL Instance
+  PostgreSQLDB:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "secureflow-postgres-${Environment}"
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '15.4'
+      MasterUsername: postgres
+      MasterUserPassword: !Ref DBPassword
+      AllocatedStorage: 20
+      StorageType: gp2
+      DBName: secureflow
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      BackupRetentionPeriod: 7
+      StorageEncrypted: true
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: !Sub "secureflow-postgres-${Environment}"
+
+  # VPC for RDS (Lambda uses default VPC)
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref VpcCIDR
+      CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: SecureFlow-VPC
+          Value: !Sub "secureflow-vpc-${Environment}"
 
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: SecureFlow-IGW
-
-  InternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref VPC
-
-  PublicSubnet1:
+  PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs '']
-      CidrBlock: !Ref PublicSubnet1CIDR
-      MapPublicIpOnLaunch: true
+      CidrBlock: 10.0.1.0/24
       Tags:
         - Key: Name
-          Value: SecureFlow Public Subnet (AZ1)
+          Value: !Sub "secureflow-private-subnet-1-${Environment}"
 
-  PublicSubnet2:
+  PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs '']
-      CidrBlock: !Ref PublicSubnet2CIDR
-      MapPublicIpOnLaunch: true
+      CidrBlock: 10.0.2.0/24
       Tags:
         - Key: Name
-          Value: SecureFlow Public Subnet (AZ2)
+          Value: !Sub "secureflow-private-subnet-2-${Environment}"
 
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: SecureFlow Public Routes
-
-  DefaultPublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  PublicSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet1
-
-  PublicSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet2
-
-  # Security Groups
-  LoadBalancerSecurityGroup:
+  # Security Group for RDS
+  DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: SecureFlow-LoadBalancer-SG
-      GroupDescription: Security group for load balancer
+      GroupName: !Sub "secureflow-database-sg-${Environment}"
+      GroupDescription: Security group for PostgreSQL database
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 5432
+          ToPort: 5432
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+          Description: PostgreSQL access
 
-  ECSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: SecureFlow-ECS-SG
-      GroupDescription: Security group for ECS tasks
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-        - IpProtocol: tcp
-          FromPort: 5001
-          ToPort: 5001
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-
-  # ECR Repositories
-  BackendRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: secureflow-backend
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      LifecyclePolicy:
-        LifecyclePolicyText: |
-          {
-            "rules": [
-              {
-                "rulePriority": 1,
-                "selection": {
-                  "tagStatus": "untagged",
-                  "countType": "sinceImagePushed",
-                  "countUnit": "days",
-                  "countNumber": 7
-                },
-                "action": {
-                  "type": "expire"
-                }
-              }
-            ]
-          }
-
-  FrontendRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: secureflow-frontend
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      LifecyclePolicy:
-        LifecyclePolicyText: |
-          {
-            "rules": [
-              {
-                "rulePriority": 1,
-                "selection": {
-                  "tagStatus": "untagged",
-                  "countType": "sinceImagePushed",
-                  "countUnit": "days",
-                  "countNumber": 7
-                },
-                "action": {
-                  "type": "expire"
-                }
-              }
-            ]
-          }
-
-  # ECS Cluster
-  ECSCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: secureflow-cluster
-      CapacityProviders:
-        - FARGATE
-        - FARGATE_SPOT
-      DefaultCapacityProviderStrategy:
-        - CapacityProvider: FARGATE
-          Weight: 1
-
-  # Application Load Balancer
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: secureflow-alb
-      Scheme: internet-facing
-      Type: application
-      Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
-      SecurityGroups:
-        - !Ref LoadBalancerSecurityGroup
-
-  # Target Groups
-  FrontendTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: secureflow-frontend-targets
-      Port: 80
-      Protocol: HTTP
-      VpcId: !Ref VPC
-      TargetType: ip
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-
-  BackendTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: secureflow-backend-targets
-      Port: 5001
-      Protocol: HTTP
-      VpcId: !Ref VPC
-      TargetType: ip
-      HealthCheckPath: /health
-      HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
-
-  LoadBalancerListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref FrontendTargetGroup
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
-      Rules:
-        - Priority: 100
-          Conditions:
-            - Field: path-pattern
-              Values: ['/api/*']
-          Actions:
-            - Type: forward
-              TargetGroupArn: !Ref BackendTargetGroup
-
-  # ECS Task Definitions
-  BackendTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: secureflow-backend
-      Cpu: 256
-      Memory: 512
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-      TaskRoleArn: !GetAtt TaskRole.Arn
-      ContainerDefinitions:
-        - Name: backend
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/secureflow-backend:latest
-          PortMappings:
-            - ContainerPort: 5001
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref BackendLogGroup
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
-          Environment:
-            - Name: NODE_ENV
-              Value: production
-            - Name: PORT
-              Value: '5001'
-
-  FrontendTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: secureflow-frontend
-      Cpu: 256
-      Memory: 512
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-      TaskRoleArn: !GetAtt TaskRole.Arn
-      ContainerDefinitions:
-        - Name: frontend
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/secureflow-frontend:latest
-          PortMappings:
-            - ContainerPort: 80
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref FrontendLogGroup
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
-          Environment:
-            - Name: NODE_ENV
-              Value: production
-
-  # ECS Services
-  BackendService:
-    Type: AWS::ECS::Service
-    DependsOn: LoadBalancerListener
-    Properties:
-      ServiceName: secureflow-backend-service
-      Cluster: !Ref ECSCluster
-      TaskDefinition: !Ref BackendTaskDefinition
-      DesiredCount: 2
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          SecurityGroups:
-            - !Ref ECSSecurityGroup
-          Subnets:
-            - !Ref PublicSubnet1
-            - !Ref PublicSubnet2
-          AssignPublicIp: ENABLED
-      LoadBalancers:
-        - ContainerName: backend
-          ContainerPort: 5001
-          TargetGroupArn: !Ref BackendTargetGroup
-
-  FrontendService:
-    Type: AWS::ECS::Service
-    DependsOn: LoadBalancerListener
-    Properties:
-      ServiceName: secureflow-frontend-service
-      Cluster: !Ref ECSCluster
-      TaskDefinition: !Ref FrontendTaskDefinition
-      DesiredCount: 2
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          SecurityGroups:
-            - !Ref ECSSecurityGroup
-          Subnets:
-            - !Ref PublicSubnet1
-            - !Ref PublicSubnet2
-          AssignPublicIp: ENABLED
-      LoadBalancers:
-        - ContainerName: frontend
-          ContainerPort: 80
-          TargetGroupArn: !Ref FrontendTargetGroup
-
-  # CloudWatch Log Groups
-  BackendLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/secureflow-backend
-      RetentionInDays: 7
-
-  FrontendLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/secureflow-frontend
-      RetentionInDays: 7
-
-  # IAM Roles
-  TaskExecutionRole:
+  # Lambda Execution Role
+  LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${AWS::StackName}-TaskExecutionRole
+      RoleName: !Sub "secureflow-lambda-role-${Environment}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              Service: ecs-tasks.amazonaws.com
+              Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: ECRAccess
+        - PolicyName: RDSAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - ecr:GetAuthorizationToken
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                Resource: '*'
+                  - rds:DescribeDBInstances
+                  - rds:DescribeDBClusters
+                Resource: "*"
 
-  TaskRole:
-    Type: AWS::IAM::Role
+  # Lambda Function
+  SecureFlowLambda:
+    Type: AWS::Lambda::Function
     Properties:
-      RoleName: !Sub ${AWS::StackName}-TaskRole
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: CloudWatchLogs
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                Resource: '*'
-          
+      FunctionName: !Sub "secureflow-api-${Environment}"
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                  'body': json.dumps({'message': 'SecureFlow Lambda function created. Deploy your code.'})
+              }
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          DATABASE_URL: !Sub 
+            - "postgresql://postgres:${DBPassword}@${DBEndpoint}:5432/secureflow"
+            - DBEndpoint: !GetAtt PostgreSQLDB.Endpoint.Address
+              DBPassword: !Ref DBPassword
+          ENVIRONMENT: !Ref Environment
+
+  # API Gateway
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "secureflow-api-${Environment}"
+      Description: SecureFlow API Gateway
+      EndpointConfiguration:
+        Types: [REGIONAL]
+
+  # API Gateway Resources and Methods
+  ApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: api
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref ApiResource
+      PathPart: health
+
+  PredictResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref ApiResource
+      PathPart: predict
+
+  # Lambda Permission for API Gateway
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/*/*"
+
+  # API Gateway Methods (Health Check)
+  HealthMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowLambda.Arn}/invocations"
+
+  # API Gateway Methods (Predict)
+  PredictMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref PredictResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowLambda.Arn}/invocations"
+
+  # API Gateway CORS for Health
+  HealthOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref HealthResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # API Gateway CORS for Predict
+  PredictOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref PredictResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: [HealthMethod, PredictMethod, HealthOptionsMethod, PredictOptionsMethod]
+    Properties:
+      RestApiId: !Ref RestApi
+      StageName: prod
+
 Outputs:
-  VPC:
-    Description: VPC ID
-    Value: !Ref VPC
+  # Frontend Outputs
+  S3BucketName:
+    Description: S3 bucket name for frontend
+    Value: !Ref FrontendBucket
     Export:
-      Name: !Sub ${AWS::StackName}-VPC
+      Name: !Sub "${AWS::StackName}-S3BucketName"
 
-  PublicSubnets:
-    Description: Public subnet IDs
-    Value: !Join [",", [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+  CloudFrontDomainName:
+    Description: CloudFront distribution domain name
+    Value: !GetAtt CloudFrontDistribution.DomainName
     Export:
-      Name: !Sub ${AWS::StackName}-PublicSubnets
+      Name: !Sub "${AWS::StackName}-CloudFrontDomain"
 
-  ECSCluster:
-    Description: ECS Cluster Name
-    Value: !Ref ECSCluster
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref CloudFrontDistribution
     Export:
-      Name: !Sub ${AWS::StackName}-ECSCluster
+      Name: !Sub "${AWS::StackName}-CloudFrontDistributionId"
 
-  LoadBalancerURL:
-    Description: Load Balancer URL
-    Value: !Sub http://${LoadBalancer.DNSName}
+  # Backend Outputs
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
     Export:
-      Name: !Sub ${AWS::StackName}-LoadBalancerURL
+      Name: !Sub "${AWS::StackName}-ApiGatewayUrl"
 
-  BackendRepository:
-    Description: Backend ECR Repository URI
-    Value: !GetAtt BackendRepository.RepositoryUri
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref SecureFlowLambda
     Export:
-      Name: !Sub ${AWS::StackName}-BackendRepository
+      Name: !Sub "${AWS::StackName}-LambdaFunctionName"
 
-  FrontendRepository:
-    Description: Frontend ECR Repository URI
-    Value: !GetAtt FrontendRepository.RepositoryUri
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt SecureFlowLambda.Arn
     Export:
-      Name: !Sub ${AWS::StackName}-FrontendRepository
+      Name: !Sub "${AWS::StackName}-LambdaFunctionArn"
 
-  TaskExecutionRoleArn:
-    Description: Task Execution Role ARN
-    Value: !GetAtt TaskExecutionRole.Arn
+  # Database Outputs
+  DatabaseEndpoint:
+    Description: PostgreSQL database endpoint
+    Value: !GetAtt PostgreSQLDB.Endpoint.Address
     Export:
-      Name: !Sub ${AWS::StackName}-TaskExecutionRoleArn
+      Name: !Sub "${AWS::StackName}-DatabaseEndpoint"
 
-  TaskRoleArn:
-    Description: Task Role ARN
-    Value: !GetAtt TaskRole.Arn
+  DatabasePort:
+    Description: PostgreSQL database port
+    Value: !GetAtt PostgreSQLDB.Endpoint.Port
     Export:
-      Name: !Sub ${AWS::StackName}-TaskRoleArn
+      Name: !Sub "${AWS::StackName}-DatabasePort"
 
-  ECSSecurityGroup:
-    Description: ECS Security Group ID
-    Value: !Ref ECSSecurityGroup
+  DatabaseName:
+    Description: PostgreSQL database name
+    Value: secureflow
     Export:
-      Name: !Sub ${AWS::StackName}-ECSSecurityGroup
+      Name: !Sub "${AWS::StackName}-DatabaseName"
 
-  BackendTargetGroup:
-    Description: Backend Target Group ARN
-    Value: !Ref BackendTargetGroup
+  # Application URL
+  ApplicationUrl:
+    Description: Complete application URL
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
     Export:
-      Name: !Sub ${AWS::StackName}-BackendTargetGroup
-
-  FrontendTargetGroup:
-    Description: Frontend Target Group ARN
-    Value: !Ref FrontendTargetGroup
-    Export:
-      Name: !Sub ${AWS::StackName}-FrontendTargetGroup
-
-  BackendServiceArn:
-    Description: Backend ECS Service ARN
-    Value: !Ref BackendService
-    Export:
-      Name: !Sub ${AWS::StackName}-BackendService
-
-  FrontendServiceArn:
-    Description: Frontend ECS Service ARN
-    Value: !Ref FrontendService
-    Export:
-      Name: !Sub ${AWS::StackName}-FrontendService
+      Name: !Sub "${AWS::StackName}-ApplicationUrl"
