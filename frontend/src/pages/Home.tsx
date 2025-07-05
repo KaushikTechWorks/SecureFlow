@@ -23,20 +23,15 @@ import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 
 interface PredictionResult {
-  transaction_id: number;
-  is_anomaly: boolean;
-  anomaly_score: number;
+  is_fraudulent: boolean;
   confidence: number;
-  explanation?: {
-    [key: string]: {
-      value: number;
-      impact: string;
-    };
+  risk_factors: {
+    high_amount: boolean;
+    unusual_time: boolean;
+    risky_category: boolean;
   };
-  shap_explanation?: Record<string, number>;
-  timestamp?: string;
-  risk_level: string;
-  message: string;
+  data_source: string;
+  timestamp: string;
 }
 
 const Home: React.FC = () => {
@@ -90,27 +85,27 @@ const Home: React.FC = () => {
   const getShapExplanation = () => {
     if (!result) return null;
 
-    let features: [string, number][] = [];
-
-    // Handle new format (shap_explanation)
-    if (result.shap_explanation) {
-      features = Object.entries(result.shap_explanation);
-    } 
-    // Handle legacy format (explanation)
-    else if (result.explanation) {
-      features = Object.entries(result.explanation).map(([key, value]) => [
-        key,
-        value.impact === 'High' ? 0.5 : value.impact === 'Medium' ? 0.3 : 0.1
-      ]);
+    // Since our current API doesn't return SHAP explanations,
+    // we'll create a simple explanation based on risk factors
+    const factors: [string, number][] = [];
+    
+    if (result.risk_factors.high_amount) {
+      factors.push(['High Amount', 0.4]);
+    }
+    if (result.risk_factors.unusual_time) {
+      factors.push(['Unusual Time', 0.3]);
+    }
+    if (result.risk_factors.risky_category) {
+      factors.push(['Risky Category', 0.3]);
     }
 
-    if (features.length === 0) return null;
+    if (factors.length === 0) return null;
 
-    return features
+    return factors
       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
       .slice(0, 3)
       .map(([feature, value]) => ({
-        feature: feature.replace('_', ' ').toUpperCase(),
+        feature: feature,
         value: value,
         impact: value > 0 ? 'increases' : 'decreases',
       }));
@@ -469,8 +464,8 @@ const Home: React.FC = () => {
               <Box>
                 <Box sx={{ mb: 3, textAlign: 'center' }}>
                   <Chip
-                    label={result.is_anomaly ? 'SUSPICIOUS TRANSACTION' : 'NORMAL TRANSACTION'}
-                    color={result.is_anomaly ? 'error' : 'success'}
+                    label={result.is_fraudulent ? 'SUSPICIOUS TRANSACTION' : 'NORMAL TRANSACTION'}
+                    color={result.is_fraudulent ? 'error' : 'success'}
                     size="medium"
                     sx={{ fontSize: '1rem', py: 2 }}
                   />
@@ -479,10 +474,10 @@ const Home: React.FC = () => {
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
                   <Box sx={{ flex: '1 1 48%' }}>
                     <Typography variant="body2" color="text.secondary">
-                      Anomaly Score
+                      Risk Level
                     </Typography>
                     <Typography variant="h6">
-                      {result.anomaly_score.toFixed(3)}
+                      {result.is_fraudulent ? 'High Risk' : 'Low Risk'}
                     </Typography>
                   </Box>
                   <Box sx={{ flex: '1 1 48%' }}>
@@ -498,7 +493,7 @@ const Home: React.FC = () => {
                 {getShapExplanation() && (
                   <Box sx={{ mt: 3 }}>
                     <Typography variant="h6" gutterBottom>
-                      Key Factors (SHAP Analysis)
+                      Key Risk Factors
                     </Typography>
                     {getShapExplanation()?.map((factor, index) => (
                       <Box key={index} sx={{ mb: 1 }}>
@@ -513,12 +508,33 @@ const Home: React.FC = () => {
                   </Box>
                 )}
 
+                {/* Risk Factors Display */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Risk Factor Analysis
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {result.risk_factors.high_amount && (
+                      <Chip label="High Amount" size="small" color="warning" />
+                    )}
+                    {result.risk_factors.unusual_time && (
+                      <Chip label="Unusual Time" size="small" color="warning" />
+                    )}
+                    {result.risk_factors.risky_category && (
+                      <Chip label="Risky Category" size="small" color="warning" />
+                    )}
+                    {!result.risk_factors.high_amount && !result.risk_factors.unusual_time && !result.risk_factors.risky_category && (
+                      <Typography variant="body2" color="text.secondary">No specific risk factors detected</Typography>
+                    )}
+                  </Box>
+                </Box>
+
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Transaction ID: {result.transaction_id}
+                    Data Source: {result.data_source}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Analyzed at: {result.timestamp ? new Date(result.timestamp).toLocaleString() : new Date().toLocaleString()}
+                    Analyzed at: {new Date(result.timestamp).toLocaleString()}
                   </Typography>
                 </Box>
               </Box>
