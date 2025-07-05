@@ -80,7 +80,7 @@ def init_database():
                     merchant_category, transaction_type, anomaly_score, 
                     is_anomaly, timestamp
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''',
+            ''', [
                 transaction_id,
                 amount,
                 random.randint(0, 23),
@@ -90,7 +90,7 @@ def init_database():
                 random.uniform(-1, 1),
                 is_anomaly,
                 datetime.now() - timedelta(days=random.randint(0, 30))
-            )
+            ])
         
         conn.close()
         logger.info("Database initialized successfully")
@@ -311,7 +311,7 @@ def handle_predict(event, context):
                     merchant_category, transaction_type, anomaly_score, 
                     is_anomaly, timestamp
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''',
+            ''', [
                 transaction_id,
                 amount,
                 hour,
@@ -321,7 +321,7 @@ def handle_predict(event, context):
                 risk_score,
                 is_fraudulent,
                 datetime.now()
-            )
+            ])
             conn.close()
             
         except Exception as db_error:
@@ -536,7 +536,7 @@ def handle_predict_batch(event, context):
                             merchant_category, transaction_type, anomaly_score, 
                             is_anomaly, timestamp
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, 
+                    """, [
                     transaction_id,
                     amount,
                     hour,
@@ -546,7 +546,7 @@ def handle_predict_batch(event, context):
                     risk_score,
                     is_fraudulent,
                     datetime.now()
-                    )
+                    ])
                     conn.close()
                 except Exception as db_error:
                     logger.warning(f"Could not store batch prediction {i} in database: {db_error}")
