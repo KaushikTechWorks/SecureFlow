@@ -18,9 +18,12 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL
 # Enable hot reloading
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
+ENV FAST_REFRESH=true
 
-# Expose port 3000 (React dev server default)
 EXPOSE 3000
+
+# Start development server
+CMD ["npm", "start"]
 
 # Start development server with hot reloading
 CMD ["npm", "start"]

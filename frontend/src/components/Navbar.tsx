@@ -23,6 +23,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import ThemeToggleButton from './ThemeToggleButton';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -150,34 +151,38 @@ const Navbar: React.FC = () => {
                 >
                   SECUREFLOW
                 </Typography>
+                <ThemeToggleButton />
               </Box>
               <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
                 {drawer}
               </Drawer>
             </>
           ) : (
-            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
-              {navItems.map((item) => (
-                <Button
-                  key={item.path}
-                  component={RouterLink}
-                  to={item.path}
-                  startIcon={item.icon}
-                  sx={{
-                    mx: 1,
-                    color: location.pathname === item.path ? 'primary.main' : 'text.primary',
-                    borderBottom: location.pathname === item.path ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
-                    borderRadius: 0,
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                      borderBottom: `3px solid ${theme.palette.primary.light}`,
-                    },
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </Box>
+            <>
+              <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+                {navItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    component={RouterLink}
+                    to={item.path}
+                    startIcon={item.icon}
+                    sx={{
+                      mx: 1,
+                      color: location.pathname === item.path ? 'primary.main' : 'text.primary',
+                      borderBottom: location.pathname === item.path ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+                      borderRadius: 0,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        borderBottom: `3px solid ${theme.palette.primary.light}`,
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
+              <ThemeToggleButton />
+            </>
           )}
         </Toolbar>
       </Container>

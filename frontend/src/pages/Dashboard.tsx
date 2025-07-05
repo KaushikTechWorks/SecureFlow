@@ -9,6 +9,8 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Grid,
+  useTheme,
 } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -21,9 +23,17 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { TrendingUp, Security, Assessment, Feedback } from '@mui/icons-material';
+import { 
+  TrendingUp, 
+  Security, 
+  Assessment, 
+  Feedback,
+  Warning,
+  CheckCircle 
+} from '@mui/icons-material';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import StatsCard from '../components/StatsCard';
 
 ChartJS.register(
   CategoryScale,
@@ -58,6 +68,7 @@ const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
 
   useEffect(() => {
     fetchDashboardData();
@@ -198,139 +209,50 @@ const Dashboard: React.FC = () => {
 
       <Container maxWidth="lg" sx={{ mb: 6 }}>
         {/* Key Metrics */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 6 }}>
-          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-            <Card elevation={3} sx={{ 
-              borderRadius: 3,
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'translateY(-5px)' }
-            }}>
-              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'primary.main' }} />
-              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  bgcolor: 'primary.light',
-                  borderRadius: '50%',
-                  width: 60,
-                  height: 60,
-                  mx: 'auto',
-                  mb: 2
-                }}>
-                  <Assessment sx={{ fontSize: 30, color: 'white' }} />
-                </Box>
-                <Typography variant="h3" fontWeight="bold" color="primary">
-                  {data?.stats?.total_transactions || 0}
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Total Transactions
-              </Typography>
-            </CardContent>
-          </Card>
+        <Box 
+          sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { 
+              xs: '1fr', 
+              sm: '1fr 1fr', 
+              md: '1fr 1fr 1fr 1fr' 
+            },
+            gap: 3, 
+            mb: 6 
+          }}
+        >
+          <StatsCard
+            title="Total Transactions"
+            value={data?.stats?.total_transactions || 0}
+            icon={Assessment}
+            color="primary"
+            subtitle="All processed transactions"
+          />
+          
+          <StatsCard
+            title="Anomalies Detected"
+            value={data?.stats?.anomalies_detected || 0}
+            icon={Warning}
+            color="error"
+            subtitle="Flagged as suspicious"
+          />
+          
+          <StatsCard
+            title="Anomaly Rate"
+            value={`${data?.stats?.anomaly_rate?.toFixed(1) || 0}%`}
+            icon={TrendingUp}
+            color="warning"
+            subtitle="Detection percentage"
+          />
+          
+          <StatsCard
+            title="System Accuracy"
+            value={`${data?.feedback?.accuracy?.toFixed(1) || 0}%`}
+            icon={CheckCircle}
+            color="success"
+            subtitle="Feedback accuracy"
+          />
         </Box>
-        
-        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3} sx={{ 
-            borderRadius: 3,
-            position: 'relative',
-            overflow: 'hidden',
-            transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
-          }}>
-            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'error.main' }} />
-            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                bgcolor: 'error.light',
-                borderRadius: '50%',
-                width: 60,
-                height: 60,
-                mx: 'auto',
-                mb: 2
-              }}>
-                <Security sx={{ fontSize: 30, color: 'white' }} />
-              </Box>
-              <Typography variant="h3" fontWeight="bold" color="error">
-                {data?.stats?.anomalies_detected || 0}
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Anomalies Detected
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3} sx={{ 
-            borderRadius: 3,
-            position: 'relative',
-            overflow: 'hidden',
-            transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
-          }}>
-            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'warning.main' }} />
-            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                bgcolor: 'warning.light',
-                borderRadius: '50%',
-                width: 60,
-                height: 60,
-                mx: 'auto',
-                mb: 2
-              }}>
-                <TrendingUp sx={{ fontSize: 30, color: 'white' }} />
-              </Box>
-              <Typography variant="h3" fontWeight="bold" color="warning.main">
-                {data?.stats?.anomaly_rate ? data.stats.anomaly_rate.toFixed(1) : 0}%
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Anomaly Rate
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-          <Card elevation={3} sx={{ 
-            borderRadius: 3,
-            position: 'relative',
-            overflow: 'hidden',
-            transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
-          }}>
-            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'success.main' }} />
-            <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                bgcolor: 'success.light',
-                borderRadius: '50%',
-                width: 60,
-                height: 60,
-                mx: 'auto',
-                mb: 2
-              }}>
-                <Feedback sx={{ fontSize: 30, color: 'white' }} />
-              </Box>
-              <Typography variant="h3" fontWeight="bold" color="success.main">
-                {data?.feedback?.accuracy?.toFixed(1) || '0.0'}%
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Feedback Accuracy
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
 
       {/* Charts */}
       <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
