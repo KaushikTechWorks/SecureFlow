@@ -1,12 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Container,
   Typography,
   Paper,
   Box,
+  Card,
+  CardContent,
+  CircularProgress,
   Alert,
   Chip,
+  Button,
   Skeleton,
+  Grid,
+  Fade,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -19,18 +27,9 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { 
-  TrendingUp, 
-  Security, 
-  Assessment, 
-  Warning,
-  CheckCircle 
-} from '@mui/icons-material';
+import { TrendingUp, Security, Assessment, Feedback, Refresh, ErrorOutline } from '@mui/icons-material';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
-import StatsCard from '../components/StatsCard';
-import LightAnimation from '../components/LightAnimation';
-import SegmentedProgress from '../components/SegmentedProgress';
 
 ChartJS.register(
   CategoryScale,
@@ -61,28 +60,52 @@ interface DashboardData {
   };
 }
 
-const Dashboard: React.FC = () => {
+const DashboardComponent: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
 
   useEffect(() => {
     fetchDashboardData();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      
       const response = await axios.get(API_CONFIG.ENDPOINTS.DASHBOARD);
       setData(response.data);
+      setLastUpdated(new Date());
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch dashboard data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  const getHourlyChartData = () => {
+  const handleRetry = useCallback(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const getHourlyChartData = useMemo(() => {
     if (!data?.hourly_distribution || data.hourly_distribution.length === 0) return null;
 
     // Create a complete 24-hour dataset, filling missing hours with 0
@@ -117,9 +140,9 @@ const Dashboard: React.FC = () => {
         },
       ],
     };
-  };
+  }, [data?.hourly_distribution]);
 
-  const getAnomalyDistributionData = () => {
+  const getAnomalyDistributionData = useMemo(() => {
     if (!data?.hourly_distribution || data.hourly_distribution.length === 0) return null;
 
     // Calculate risk distribution based on anomaly rate per hour
@@ -143,46 +166,70 @@ const Dashboard: React.FC = () => {
         },
       ],
     };
-  };
+  }, [data?.hourly_distribution]);
+
+  // Skeleton Loading Component
+  const MetricCardSkeleton = () => (
+    <Card elevation={3} sx={{ 
+      borderRadius: 3,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <Skeleton variant="rectangular" height={6} />
+      <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+        <Skeleton variant="circular" width={60} height={60} sx={{ mx: 'auto', mb: 2 }} />
+        <Skeleton variant="text" sx={{ fontSize: '2rem', mb: 1 }} />
+        <Skeleton variant="text" />
+      </CardContent>
+    </Card>
+  );
+
+  const ChartSkeleton = ({ height = 400 }: { height?: number }) => (
+    <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Skeleton variant="text" width={250} height={32} />
+        <Skeleton variant="rectangular" width={120} height={24} sx={{ borderRadius: 1 }} />
+      </Box>
+      <Skeleton variant="rectangular" width="100%" height={height} sx={{ borderRadius: 2 }} />
+    </Paper>
+  );
 
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <LightAnimation delay={0} triggerOnScroll={false}>
-          <Box sx={{ mb: 4 }}>
-            <Skeleton variant="text" width="300px" height={40} sx={{ mb: 2 }} />
-            <Skeleton variant="text" width="500px" height={20} />
+        {/* Header Skeleton */}
+        <Box sx={{ 
+          backgroundColor: 'background.paper',
+          pt: 4, pb: 6, mb: 4,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Box sx={{ flex: 1 }}>
+              <Skeleton variant="text" sx={{ fontSize: '2.5rem', mb: 1 }} width="60%" />
+              <Skeleton variant="text" width="80%" />
+            </Box>
+            <Skeleton variant="rectangular" width={120} height={32} sx={{ borderRadius: 2 }} />
           </Box>
-        </LightAnimation>
-        
-        {/* Loading Stats Cards */}
-        <Box 
-          sx={{ 
-            display: 'grid', 
-            gridTemplateColumns: { 
-              xs: '1fr', 
-              sm: '1fr 1fr', 
-              md: '1fr 1fr 1fr 1fr' 
-            },
-            gap: 3, 
-            mb: 6 
-          }}
-        >
-          {Array.from({ length: 4 }).map((_, index) => (
-            <LightAnimation key={index} delay={index * 0.1} triggerOnScroll={false}>
-              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 3 }} />
-            </LightAnimation>
+        </Box>
+
+        {/* Metrics Skeleton */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 6 }}>
+          {[1, 2, 3, 4].map((index) => (
+            <Box key={index} sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
+              <MetricCardSkeleton />
+            </Box>
           ))}
         </Box>
 
-        {/* Loading Charts - Simplified */}
+        {/* Charts Skeleton */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          <LightAnimation delay={0.2} triggerOnScroll={false} sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
-            <Skeleton variant="rectangular" height={450} sx={{ borderRadius: 3 }} />
-          </LightAnimation>
-          <LightAnimation delay={0.3} triggerOnScroll={false} sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
-            <Skeleton variant="rectangular" height={450} sx={{ borderRadius: 3 }} />
-          </LightAnimation>
+          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
+            <ChartSkeleton height={400} />
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
+            <ChartSkeleton height={300} />
+          </Box>
         </Box>
       </Container>
     );
@@ -191,445 +238,608 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
+        <Fade in>
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              p: 4, 
+              textAlign: 'center',
+              borderRadius: 3,
+              border: '2px solid',
+              borderColor: 'error.light',
+              backgroundColor: 'error.lighter'
+            }}
+          >
+            <ErrorOutline sx={{ fontSize: 80, color: 'error.main', mb: 2 }} />
+            <Typography variant="h5" color="error.main" gutterBottom fontWeight="bold">
+              Unable to Load Dashboard
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
+              {error}
+            </Typography>
+            <Button 
+              variant="contained" 
+              startIcon={<Refresh />}
+              onClick={handleRetry}
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 4,
+                py: 1.5,
+                fontWeight: 'bold',
+                textTransform: 'none'
+              }}
+            >
+              Try Again
+            </Button>
+          </Paper>
+        </Fade>
       </Container>
     );
   }
 
   return (
-    <>
-      {/* Dashboard Header */}
-      <Box 
-        sx={{ 
-          backgroundColor: 'background.paper',
-          pt: 4,
-          pb: 6,
-          mb: 4,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))',
-          overflow: 'hidden',
-          position: 'relative'
-        }}
-      >
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center' }}>
-            <LightAnimation delay={0.1} direction="left" triggerOnScroll={false}>
-              <Box sx={{ mb: { xs: 3, md: 0 } }}>
-                <Typography variant="h3" fontWeight="bold" color="primary">
+    <Fade in timeout={600}>
+      <Box>
+        {/* Dashboard Header */}
+        <Box 
+          sx={{ 
+            backgroundColor: 'background.paper',
+            pt: { xs: 2, md: 4 },
+            pb: { xs: 4, md: 6 },
+            mb: 4,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            backgroundImage: 'linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02))'
+          }}
+        >
+          <Container maxWidth="lg">
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', md: 'row' }, 
+              justifyContent: 'space-between', 
+              alignItems: { xs: 'flex-start', md: 'center' },
+              gap: { xs: 2, md: 0 }
+            }}>
+              <Box sx={{ mb: { xs: 2, md: 0 } }}>
+                <Typography 
+                  variant={isMobile ? "h4" : "h3"} 
+                  fontWeight="bold" 
+                  color="primary"
+                  sx={{ mb: 1 }}
+                >
                   SecureFlow Dashboard
                 </Typography>
-                <Typography variant="body1" sx={{ mt: 1 }} color="text.secondary">
+                <Typography variant={isMobile ? "body2" : "body1"} color="text.secondary">
                   Real-time analytics and insights from transaction anomaly detection
                 </Typography>
+                {lastUpdated && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </Typography>
+                )}
               </Box>
-            </LightAnimation>
-            <LightAnimation delay={0.3} direction="right" triggerOnScroll={false}>
-              <Box>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {refreshing && (
+                  <Chip 
+                    icon={<CircularProgress size={16} />} 
+                    label="Updating..." 
+                    color="info" 
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
                 <Chip 
                   icon={<Assessment />} 
                   label="LAST 7 DAYS" 
                   color="primary" 
                   variant="outlined"
-                  sx={{ 
-                    fontWeight: 'medium',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-                    }
-                  }}
+                  sx={{ fontWeight: 'medium' }}
                 />
+                <Button
+                  startIcon={<Refresh />}
+                  onClick={() => fetchDashboardData(true)}
+                  disabled={refreshing}
+                  size="small"
+                  sx={{ 
+                    minWidth: 'auto',
+                    borderRadius: 2,
+                    textTransform: 'none'
+                  }}
+                >
+                  Refresh
+                </Button>
               </Box>
-            </LightAnimation>
-          </Box>
-        </Container>
-      </Box>
+            </Box>
+          </Container>
+        </Box>
 
       <Container maxWidth="lg" sx={{ mb: 6 }}>
         {/* Key Metrics */}
-        <Box 
-          sx={{ 
-            display: 'grid', 
-            gridTemplateColumns: { 
-              xs: '1fr', 
-              sm: '1fr 1fr', 
-              md: '1fr 1fr 1fr 1fr' 
-            },
-            gap: 3, 
-            mb: 6 
-          }}
-        >
-          <LightAnimation delay={0.05} direction="up">
-            <StatsCard
-              title="Total Transactions"
-              value={data?.stats?.total_transactions || 0}
-              icon={Assessment}
-              color="primary"
-              subtitle="All processed transactions"
-            />
-          </LightAnimation>
-          
-          <LightAnimation delay={0.1} direction="up">
-            <StatsCard
-              title="Anomalies Detected"
-              value={data?.stats?.anomalies_detected || 0}
-              icon={Warning}
-              color="error"
-              subtitle="Flagged as suspicious"
-            />
-          </LightAnimation>
-          
-          <LightAnimation delay={0.15} direction="up">
-            <StatsCard
-              title="Anomaly Rate"
-              value={`${data?.stats?.anomaly_rate?.toFixed(1) || 0}%`}
-              icon={TrendingUp}
-              color="warning"
-              subtitle="Detection percentage"
-            />
-          </LightAnimation>
-          
-          <LightAnimation delay={0.2} direction="up">
-            <StatsCard
-              title="System Accuracy"
-              value={`${data?.feedback?.accuracy?.toFixed(1) || 0}%`}
-              icon={CheckCircle}
-              color="success"
-              subtitle="Feedback accuracy"
-            />
-          </LightAnimation>
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(4, 1fr)'
+          },
+          gap: { xs: 2, md: 3 },
+          mb: 6 
+        }}>
+          {/* Total Transactions */}
+          <Fade in timeout={800} style={{ transitionDelay: '100ms' }}>
+            <Card elevation={3} sx={{ 
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                transform: 'translateY(-8px)',
+                boxShadow: (theme) => theme.shadows[8]
+              }
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'primary.main' }} />
+              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: 'primary.light',
+                  borderRadius: '50%',
+                  width: { xs: 50, md: 60 },
+                  height: { xs: 50, md: 60 },
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Assessment sx={{ fontSize: { xs: 24, md: 30 }, color: 'white' }} />
+                </Box>
+                <Typography variant={isMobile ? "h4" : "h3"} fontWeight="bold" color="primary">
+                  {data?.stats?.total_transactions?.toLocaleString() || 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total Transactions
+                </Typography>
+              </CardContent>
+            </Card>
+          </Fade>
+        
+          {/* Anomalies Detected */}
+          <Fade in timeout={800} style={{ transitionDelay: '200ms' }}>
+            <Card elevation={3} sx={{ 
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                transform: 'translateY(-8px)',
+                boxShadow: (theme) => theme.shadows[8]
+              }
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'error.main' }} />
+              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: 'error.light',
+                  borderRadius: '50%',
+                  width: { xs: 50, md: 60 },
+                  height: { xs: 50, md: 60 },
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Security sx={{ fontSize: { xs: 24, md: 30 }, color: 'white' }} />
+                </Box>
+                <Typography variant={isMobile ? "h4" : "h3"} fontWeight="bold" color="error">
+                  {data?.stats?.anomalies_detected?.toLocaleString() || 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Anomalies Detected
+                </Typography>
+              </CardContent>
+            </Card>
+          </Fade>
+        
+          {/* Anomaly Rate */}
+          <Fade in timeout={800} style={{ transitionDelay: '300ms' }}>
+            <Card elevation={3} sx={{ 
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                transform: 'translateY(-8px)',
+                boxShadow: (theme) => theme.shadows[8]
+              }
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'warning.main' }} />
+              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: 'warning.light',
+                  borderRadius: '50%',
+                  width: { xs: 50, md: 60 },
+                  height: { xs: 50, md: 60 },
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <TrendingUp sx={{ fontSize: { xs: 24, md: 30 }, color: 'white' }} />
+                </Box>
+                <Typography variant={isMobile ? "h4" : "h3"} fontWeight="bold" color="warning.main">
+                  {data?.stats?.anomaly_rate ? data.stats.anomaly_rate.toFixed(1) : 0}%
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Anomaly Rate
+                </Typography>
+              </CardContent>
+            </Card>
+          </Fade>
+        
+          {/* Feedback Accuracy */}
+          <Fade in timeout={800} style={{ transitionDelay: '400ms' }}>
+            <Card elevation={3} sx={{ 
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                transform: 'translateY(-8px)',
+                boxShadow: (theme) => theme.shadows[8]
+              }
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, bgcolor: 'success.main' }} />
+              <CardContent sx={{ pt: 3, pb: '24px !important', px: 3, textAlign: 'center' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: 'success.light',
+                  borderRadius: '50%',
+                  width: { xs: 50, md: 60 },
+                  height: { xs: 50, md: 60 },
+                  mx: 'auto',
+                  mb: 2
+                }}>
+                  <Feedback sx={{ fontSize: { xs: 24, md: 30 }, color: 'white' }} />
+                </Box>
+                <Typography variant={isMobile ? "h4" : "h3"} fontWeight="bold" color="success.main">
+                  {data?.feedback?.accuracy?.toFixed(1) || '0.0'}%
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Feedback Accuracy
+                </Typography>
+              </CardContent>
+            </Card>
+          </Fade>
         </Box>
 
-      {/* Charts */}
-      <LightAnimation delay={0.1}>
-        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
+        {/* Charts */}
+        <Typography 
+          variant={isMobile ? "h6" : "h5"} 
+          gutterBottom 
+          sx={{ mb: 3, fontWeight: 'medium' }}
+        >
           Transaction Analytics
         </Typography>
-      </LightAnimation>
-      
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-        <LightAnimation delay={0.15} sx={{ flex: { xs: '1 1 100%', lg: '1 1 65%' } }}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 3, 
-              borderRadius: 3,
-              height: '100%',
-              backgroundImage: 'linear-gradient(to bottom, rgba(37, 99, 235, 0.02), rgba(255, 255, 255, 0))',
-              // Reduced animation for better performance
-              transition: 'transform 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-              }
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" fontWeight="medium">
-                Hourly Transaction Distribution
-              </Typography>
-              <Chip 
-                label="Last 24 Hours" 
-                size="small" 
-                color="primary" 
-                variant="outlined"
-                sx={{
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'scale(1.05)'
-                  }
-                }}
-              />
-            </Box>
-            {getHourlyChartData() ? (
-              <Box sx={{ height: 400 }}>
-                <Bar
-                  data={getHourlyChartData()!}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                      duration: 600, // Further reduced for better performance
-                      easing: 'easeOutQuart', // Simpler easing
-                    },
-                    plugins: {
-                      legend: {
-                        position: 'top' as const,
-                        labels: {
-                          usePointStyle: true,
-                          padding: 20,
-                          font: {
-                            size: 12,
-                            weight: 'bold'
-                          }
-                        }
+        
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
+          gap: 3,
+          mb: 4
+        }}>
+          {/* Hourly Chart */}
+          <Fade in timeout={1000} style={{ transitionDelay: '500ms' }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: { xs: 2, md: 3 }, 
+                borderRadius: 3,
+                height: '100%',
+                backgroundImage: 'linear-gradient(to bottom, rgba(37, 99, 235, 0.02), rgba(255, 255, 255, 0))',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  boxShadow: (theme) => theme.shadows[6]
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant={isMobile ? "body1" : "h6"} fontWeight="medium">
+                  Hourly Transaction Distribution
+                </Typography>
+                <Chip 
+                  label="Last 24 Hours" 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined"
+                />
+              </Box>
+              {getHourlyChartData ? (
+                <Box sx={{ height: { xs: 300, md: 400 } }}>
+                  <Bar
+                    data={getHourlyChartData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      interaction: {
+                        mode: 'index' as const,
+                        intersect: false,
                       },
-                      title: {
-                        display: false,
-                      },
-                      tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: 'white',
-                        bodyColor: 'white',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        callbacks: {
-                          afterLabel: function(context) {
-                            const dataIndex = context.dataIndex;
-                            const hourData = data?.hourly_distribution?.find(h => h.hour === dataIndex);
-                            const total = hourData?.total_transactions || 0;
-                            const anomalies = hourData?.anomalies || 0;
-                            const rate = total > 0 ? ((anomalies / total) * 100).toFixed(1) : '0.0';
-                            return `Anomaly Rate: ${rate}%`;
+                      plugins: {
+                        legend: {
+                          position: 'top' as const,
+                          labels: {
+                            usePointStyle: true,
+                            padding: isMobile ? 15 : 20,
+                            font: {
+                              size: isMobile ? 10 : 12,
+                              weight: 'bold'
+                            }
                           }
-                        }
-                      }
-                    },
-                    scales: {
-                      x: {
-                        stacked: true,
-                        grid: {
+                        },
+                        title: {
                           display: false,
                         },
-                        ticks: {
-                          font: {
-                            size: 10,
+                        tooltip: {
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleColor: 'white',
+                          bodyColor: 'white',
+                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                          borderWidth: 1,
+                          cornerRadius: 8,
+                          callbacks: {
+                            afterLabel: function(context) {
+                              const dataIndex = context.dataIndex;
+                              const hourData = data?.hourly_distribution?.find(h => h.hour === dataIndex);
+                              const total = hourData?.total_transactions || 0;
+                              const anomalies = hourData?.anomalies || 0;
+                              const rate = total > 0 ? ((anomalies / total) * 100).toFixed(1) : '0.0';
+                              return `Anomaly Rate: ${rate}%`;
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        x: {
+                          stacked: true,
+                          grid: {
+                            display: false,
                           },
-                          maxRotation: 0,
-                          callback: function(value, index) {
-                            // Show every 2nd hour to avoid crowding
-                            return index % 2 === 0 ? this.getLabelForValue(value as number) : '';
+                          ticks: {
+                            font: {
+                              size: isMobile ? 8 : 10,
+                            },
+                            maxRotation: 0,
+                            callback: function(value, index) {
+                              // Show every 2nd hour on mobile, every hour on desktop
+                              const skip = isMobile ? 2 : 2;
+                              return index % skip === 0 ? this.getLabelForValue(value as number) : '';
+                            }
                           }
-                        }
-                      },
-                      y: {
-                        stacked: true,
-                        beginAtZero: true,
-                        grid: {
-                          color: 'rgba(0, 0, 0, 0.05)',
                         },
-                        ticks: {
-                          font: {
-                            size: 10,
+                        y: {
+                          stacked: true,
+                          beginAtZero: true,
+                          grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                          },
+                          ticks: {
+                            font: {
+                              size: isMobile ? 8 : 10,
+                            }
                           }
-                        }
+                        },
                       },
-                    },
-                    interaction: {
-                      mode: 'index' as const,
-                      intersect: false,
-                    },
-                  }}
-                />
-              </Box>
-            ) : (
-              <Box sx={{ 
-                height: 400, 
-                display: 'flex', 
-                flexDirection: 'column',
-                alignItems: 'center', 
-                justifyContent: 'center',
-                color: 'text.secondary',
-                backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                borderRadius: 2,
-                border: '2px dashed',
-                borderColor: 'divider'
-              }}>
-                <Assessment sx={{ fontSize: 60, mb: 2, opacity: 0.3 }} />
-                <Typography variant="h6" gutterBottom>
-                  No Hourly Data Available
-                </Typography>
-                <Typography variant="body2" textAlign="center" sx={{ maxWidth: 300 }}>
-                  Process some transactions to see the hourly distribution chart with normal vs anomalous transactions.
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </LightAnimation>
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Box sx={{ 
+                  height: { xs: 300, md: 400 }, 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  borderRadius: 2,
+                  border: '2px dashed',
+                  borderColor: 'divider'
+                }}>
+                  <Assessment sx={{ fontSize: 60, mb: 2, opacity: 0.3 }} />
+                  <Typography variant="h6" gutterBottom>
+                    No Hourly Data Available
+                  </Typography>
+                  <Typography variant="body2" textAlign="center" sx={{ maxWidth: 300 }}>
+                    Process some transactions to see the hourly distribution chart with normal vs anomalous transactions.
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          </Fade>
         
-        <LightAnimation delay={0.2} sx={{ flex: { xs: '1 1 100%', lg: '1 1 30%' } }}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 3, 
-              height: '100%',
-              transition: 'transform 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-              }
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              Transaction Classification
-            </Typography>
-            {getAnomalyDistributionData() ? (
-              <Box sx={{ height: 300 }}>
-                <Doughnut
-                  data={getAnomalyDistributionData()!}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                      duration: 400, // Reduced animation time for better performance
-                      easing: 'easeOutQuart',
-                    },
-                    plugins: {
-                      legend: {
-                        position: 'bottom' as const,
-                        labels: {
-                          usePointStyle: true,
-                          padding: 15,
-                          font: {
-                            size: 11,
-                            weight: 'bold'
+          {/* Doughnut Chart */}
+          <Fade in timeout={1000} style={{ transitionDelay: '600ms' }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: { xs: 2, md: 3 }, 
+                height: '100%',
+                borderRadius: 3,
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  boxShadow: (theme) => theme.shadows[6]
+                }
+              }}
+            >
+              <Typography variant={isMobile ? "body1" : "h6"} gutterBottom>
+                Transaction Classification
+              </Typography>
+              {getAnomalyDistributionData ? (
+                <Box sx={{ height: { xs: 250, md: 300 } }}>
+                  <Doughnut
+                    data={getAnomalyDistributionData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom' as const,
+                          labels: {
+                            usePointStyle: true,
+                            padding: isMobile ? 10 : 15,
+                            font: {
+                              size: isMobile ? 10 : 11,
+                              weight: 'bold'
+                            }
+                          }
+                        },
+                        tooltip: {
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleColor: 'white',
+                          bodyColor: 'white',
+                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                          borderWidth: 1,
+                          cornerRadius: 8,
+                          callbacks: {
+                            label: function(context) {
+                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                              const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0';
+                              return `${context.label}: ${context.parsed.toLocaleString()} (${percentage}%)`;
+                            }
                           }
                         }
                       },
-                      tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: 'white',
-                        bodyColor: 'white',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        callbacks: {
-                          label: function(context) {
-                            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0';
-                            return `${context.label}: ${context.parsed} (${percentage}%)`;
-                          }
+                      cutout: '50%',
+                      elements: {
+                        arc: {
+                          borderWidth: 2,
+                          borderColor: '#ffffff'
                         }
                       }
-                    },
-                    cutout: '50%',
-                    elements: {
-                      arc: {
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                      }
-                    }
-                  }}
-                />
-              </Box>
-            ) : (
-              <Box sx={{ 
-                height: 300, 
-                display: 'flex', 
-                flexDirection: 'column',
-                alignItems: 'center', 
-                justifyContent: 'center',
-                color: 'text.secondary',
-                backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                borderRadius: 2,
-                border: '2px dashed',
-                borderColor: 'divider'
-              }}>
-                <Security sx={{ fontSize: 50, mb: 2, opacity: 0.3 }} />
-                <Typography variant="body1" gutterBottom textAlign="center">
-                  No Classification Data
-                </Typography>
-                <Typography variant="body2" textAlign="center" sx={{ maxWidth: 200 }}>
-                  Transaction risk levels will appear here once data is processed.
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </LightAnimation>
-      </Box>
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Box sx={{ 
+                  height: { xs: 250, md: 300 }, 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  borderRadius: 2,
+                  border: '2px dashed',
+                  borderColor: 'divider'
+                }}>
+                  <Security sx={{ fontSize: 50, mb: 2, opacity: 0.3 }} />
+                  <Typography variant="body1" gutterBottom textAlign="center">
+                    No Classification Data
+                  </Typography>
+                  <Typography variant="body2" textAlign="center" sx={{ maxWidth: 200 }}>
+                    Transaction risk levels will appear here once data is processed.
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          </Fade>
+        </Box>
 
-      {/* Additional Stats */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mt: 3 }}>
-        <LightAnimation delay={0.25} sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 3,
-              transition: 'transform 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-              }
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              Model Performance
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Average Anomaly Score:</Typography>
-              <Typography variant="body1" fontWeight="bold">
-                {data?.stats?.avg_anomaly_score?.toFixed(4) || 'N/A'}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Response Time:</Typography>
-              <Typography variant="body1" fontWeight="bold" color="success.main">
-                &lt; 3 seconds
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body1">Model Type:</Typography>
-              <Typography variant="body1" fontWeight="bold">
-                Isolation Forest
-              </Typography>
-            </Box>
-          </Paper>
-        </LightAnimation>
+        {/* Additional Stats */}
+        <Typography 
+          variant={isMobile ? "h6" : "h5"} 
+          gutterBottom 
+          sx={{ mb: 3, mt: 4, fontWeight: 'medium' }}
+        >
+          System Performance
+        </Typography>
         
-        <LightAnimation delay={0.3} sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 3,
-              transition: 'transform 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-              }
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              Transaction Overview
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body1">Total Feedback:</Typography>
-              <Typography variant="body1" fontWeight="bold">
-                {data?.feedback?.total_feedback || 0}
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          gap: 3 
+        }}>
+          <Fade in timeout={1000} style={{ transitionDelay: '700ms' }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                borderRadius: 3,
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  boxShadow: (theme) => theme.shadows[6]
+                }
+              }}
+            >
+              <Typography variant="h6" gutterBottom>
+                Model Performance
               </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-              <Typography variant="body1">Positive Feedback:</Typography>
-              <Typography variant="body1" fontWeight="bold" color="success.main">
-                {data?.feedback?.positive_feedback || 0}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="body1">Average Anomaly Score:</Typography>
+                <Typography variant="body1" fontWeight="bold">
+                  {data?.stats?.avg_anomaly_score?.toFixed(4) || 'N/A'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="body1">Response Time:</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">
+                  &lt; 3 seconds
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body1">Model Type:</Typography>
+                <Typography variant="body1" fontWeight="bold">
+                  Isolation Forest
+                </Typography>
+              </Box>
+            </Paper>
+          </Fade>
+        
+          <Fade in timeout={1000} style={{ transitionDelay: '800ms' }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                borderRadius: 3,
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  boxShadow: (theme) => theme.shadows[6]
+                }
+              }}
+            >
+              <Typography variant="h6" gutterBottom>
+                Transaction Overview
               </Typography>
-            </Box>
-            
-            {/* Progress indicators - optimized for performance */}
-            <SegmentedProgress
-              value={data?.feedback?.accuracy || 0}
-              max={100}
-              label="Feedback Accuracy"
-              color="success"
-              segments={4}
-              animationDuration={800}
-            />
-            
-            <Box sx={{ mt: 2 }}>
-              <SegmentedProgress
-                value={(data?.feedback?.positive_feedback || 0) / Math.max(data?.feedback?.total_feedback || 1, 1) * 100}
-                max={100}
-                label="Positive Feedback Rate"
-                color="primary"
-                segments={4}
-                animationDuration={600}
-              />
-            </Box>
-          </Paper>
-        </LightAnimation>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="body1">Total Feedback:</Typography>
+                <Typography variant="body1" fontWeight="bold">
+                  {data?.feedback?.total_feedback?.toLocaleString() || 0}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="body1">Positive Feedback:</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">
+                  {data?.feedback?.positive_feedback?.toLocaleString() || 0}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body1">Feedback Accuracy:</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">
+                  {data?.feedback?.accuracy?.toFixed(1) || 0}%
+                </Typography>
+              </Box>
+            </Paper>
+          </Fade>
+        </Box>
+      </Container>
       </Box>
-    </Container>
-    </>
+    </Fade>
   );
 };
+
+const Dashboard = React.memo(DashboardComponent);
 
 export default Dashboard;

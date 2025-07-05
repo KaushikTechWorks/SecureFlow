@@ -1,5 +1,5 @@
-// API Configuration - Updated for cache refresh
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod';
+// API Configuration - Updated for local development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
