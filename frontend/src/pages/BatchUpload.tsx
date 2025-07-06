@@ -48,8 +48,8 @@ interface BatchResponse {
   batch_summary: {
     total_transactions: number;
     successful_predictions: number;
-    fraudulent_detected: number;
-    fraud_rate: number;
+    fraudulent_detected: number; // API field - represents transactions requiring review
+    fraud_rate: number; // API field - represents review rate
   };
   data_source: string;
   timestamp: string;

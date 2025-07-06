@@ -13,9 +13,13 @@ import {
   ListItemIcon, 
   ListItemText,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Menu,
+  MenuItem,
+  Avatar,
+  Divider,
 } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import SecurityIcon from '@mui/icons-material/Security';
 import HomeIcon from '@mui/icons-material/Home';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -23,16 +27,22 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import LogoutIcon from '@mui/icons-material/Logout';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ThemeToggleButton from './ThemeToggleButton';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { userEmail, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const navItems = [
-    { label: 'Home', path: '/', icon: <HomeIcon /> },
+    { label: 'Home', path: '/home', icon: <HomeIcon /> },
     { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
     { label: 'Batch Upload', path: '/batch', icon: <CloudUploadIcon /> },
     { label: 'Feedback', path: '/feedback', icon: <FeedbackIcon /> },
@@ -46,6 +56,24 @@ const Navbar: React.FC = () => {
       return;
     }
     setDrawerOpen(open);
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+    handleMenuClose();
+  };
+
+  const getUserInitials = (email: string) => {
+    return email.charAt(0).toUpperCase();
   };
 
   const drawer = (
@@ -151,7 +179,25 @@ const Navbar: React.FC = () => {
                 >
                   SECUREFLOW
                 </Typography>
-                <ThemeToggleButton />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ThemeToggleButton />
+                  <IconButton
+                    onClick={handleMenuClick}
+                    sx={{ 
+                      color: 'text.primary',
+                      border: `2px solid ${theme.palette.primary.main}`,
+                    }}
+                  >
+                    <Avatar sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      bgcolor: theme.palette.primary.main,
+                      fontSize: '0.875rem',
+                    }}>
+                      {userEmail ? getUserInitials(userEmail) : 'U'}
+                    </Avatar>
+                  </IconButton>
+                </Box>
               </Box>
               <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
                 {drawer}
@@ -181,11 +227,67 @@ const Navbar: React.FC = () => {
                   </Button>
                 ))}
               </Box>
-              <ThemeToggleButton />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <ThemeToggleButton />
+                <IconButton
+                  onClick={handleMenuClick}
+                  sx={{ 
+                    color: 'text.primary',
+                    border: `2px solid ${theme.palette.primary.main}`,
+                  }}
+                >
+                  <Avatar sx={{ 
+                    width: 36, 
+                    height: 36, 
+                    bgcolor: theme.palette.primary.main,
+                  }}>
+                    {userEmail ? getUserInitials(userEmail) : 'U'}
+                  </Avatar>
+                </IconButton>
+              </Box>
             </>
           )}
         </Toolbar>
       </Container>
+
+      {/* User Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            mt: 1,
+            minWidth: 200,
+            boxShadow: theme.shadows[8],
+          },
+        }}
+      >
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography variant="subtitle2" color="text.secondary">
+            Signed in as
+          </Typography>
+          <Typography variant="body2" fontWeight={600}>
+            {userEmail || 'User'}
+          </Typography>
+        </Box>
+        <Divider />
+        <MenuItem onClick={handleMenuClose} sx={{ py: 1.5 }}>
+          <ListItemIcon>
+            <AccountCircleIcon />
+          </ListItemIcon>
+          <ListItemText>Profile</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: 'error.main' }}>
+          <ListItemIcon>
+            <LogoutIcon sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
     </AppBar>
   );
 };
