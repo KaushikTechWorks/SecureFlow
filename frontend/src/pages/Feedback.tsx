@@ -43,7 +43,7 @@ interface FeedbackForm {
 
 interface FeedbackSubmission {
   transaction_id: number;
-  is_correct: boolean;
+  feedback: boolean;
   comments?: string;
 }
 
@@ -76,7 +76,7 @@ const Feedback: React.FC = () => {
     try {
       const submission: FeedbackSubmission = {
         transaction_id: parseInt(formData.transaction_id),
-        is_correct: formData.user_feedback === 'correct',
+        feedback: formData.user_feedback === 'correct',
         comments: formData.comments || undefined,
       };
 
