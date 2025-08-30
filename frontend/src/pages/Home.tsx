@@ -7,8 +7,6 @@ import {
   TextField,
   Button,
   Box,
-  Card,
-  CardContent,
   Alert,
   CircularProgress,
   Chip,
@@ -16,6 +14,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Divider,
 } from '@mui/material';
 import { TrendingUp, TrendingDown, Security, Speed } from '@mui/icons-material';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -117,37 +116,66 @@ const Home: React.FC = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
+  const surfaceStyles = React.useMemo(() => ({
+    background: isDark
+      ? 'linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))'
+      : 'linear-gradient(145deg,#ffffff,#f3f8fb)',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e2e8f0',
+    borderRadius: 3,
+    backdropFilter: 'blur(10px)',
+    boxShadow: isDark
+      ? '0 4px 14px -4px rgba(0,0,0,0.55)'
+      : '0 6px 18px -6px rgba(15,80,140,0.15)'
+  }), [isDark]);
+
   return (
     <>
       {/* New Hero Section */}
       <Box sx={{
         background: isDark
           ? 'linear-gradient(145deg,#06121f 0%, #0d2238 60%, #16324d 100%)'
-          : 'linear-gradient(145deg,#f5fbff 0%, #eaf5ff 60%, #e1f0fa 100%)',
+          : 'linear-gradient(180deg,#f6f9fb 0%, #f6f9fb 60%, #f2f7fa 100%)',
         color: isDark ? 'white' : theme.palette.text.primary,
         pt: { xs: 10, md: 12 },
         pb: { xs: 9, md: 11 },
         position: 'relative',
         overflow: 'hidden',
-        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
+        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)'
       }}>
         <ParticleBackground particleCount={55} speed={0.6} />
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 8 }}>
-            <Box sx={{ flex: 1, maxWidth: 740 }}>
-              <Typography variant="h2" sx={{ fontWeight: 700, mb: 3, lineHeight: 1.05 }}>
-                <Box component="span" sx={{
-                  background: isDark
-                    ? 'linear-gradient(90deg,#06b6ff,#00d5ff)'
-                    : 'linear-gradient(90deg,#0072e6,#00b4ff)',
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 6, md: 10 } }}>
+            {/* Left Column: Textual Narrative */}
+            <Box sx={{ flex: 1, maxWidth: 760, display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="overline" sx={{ letterSpacing: '0.15em', fontSize: 12, mb: 2, fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,40,80,0.6)' }}>
+                SECUREFLOW PLATFORM
+              </Typography>
+              <Typography component="h1" sx={{
+                fontWeight: 800,
+                lineHeight: 1.05,
+                letterSpacing: '-1.5px',
+                fontSize: { xs: '2.25rem', sm: '2.9rem', md: '3.35rem' },
+                mb: 3,
+                maxWidth: 720
+              }}>
+                <Box component="span" sx={isDark ? {
+                  background: 'linear-gradient(90deg,#06b6ff,#00d5ff)',
                   WebkitBackgroundClip: 'text',
                   color: 'transparent'
-                }}>Enterprise Risk<br />Management</Box>
+                } : { color: theme.palette.primary.dark }}>
+                  Real‑Time Transaction Intelligence
+                </Box>
               </Typography>
-              <Typography variant="h6" sx={{ mb: 5, fontWeight: 400, color: isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.65)', maxWidth: 640 }}>
+              <Typography variant="h6" sx={{
+                mb: 4,
+                fontWeight: 400,
+                color: isDark ? 'rgba(255,255,255,0.74)' : 'rgba(0,32,64,0.58)',
+                maxWidth: 600,
+                lineHeight: 1.4
+              }}>
                 Advanced ML-powered risk detection with real-time analysis. Protect your transactions with enterprise-grade security technology.
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5, mb: 4 }}>
                 <Button
                   component={RouterLink}
                   to="/dashboard"
@@ -158,9 +186,9 @@ const Home: React.FC = () => {
                     py: 1.6,
                     fontSize: '1.05rem',
                     fontWeight: 600,
-                    background: isDark ? 'linear-gradient(90deg,#0096ff,#00c0ff)' : 'linear-gradient(90deg,#007be6,#00b7ff)',
-                    boxShadow: isDark ? '0 10px 24px -6px rgba(0,150,255,0.45)' : '0 6px 16px -4px rgba(0,123,230,0.35)',
-                    '&:hover': { background: isDark ? 'linear-gradient(90deg,#0088e6,#00afd9)' : 'linear-gradient(90deg,#006dcc,#00a9e6)' }
+                    background: isDark ? 'linear-gradient(90deg,#0096ff,#00c0ff)' : theme.palette.primary.dark,
+                    boxShadow: isDark ? '0 10px 24px -6px rgba(0,150,255,0.45)' : '0 4px 14px -4px rgba(0,64,120,0.35)',
+                    '&:hover': { background: isDark ? 'linear-gradient(90deg,#0088e6,#00afd9)' : theme.palette.primary.main }
                   }}
                 >
                   View Dashboard
@@ -175,56 +203,59 @@ const Home: React.FC = () => {
                     py: 1.6,
                     fontSize: '1.05rem',
                     fontWeight: 600,
-                    borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
-                    color: isDark ? 'white' : theme.palette.text.primary,
-                    background: isDark ? 'transparent' : 'rgba(255,255,255,0.6)',
-                    '&:hover': { borderColor: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.85)' }
+                    borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)',
+                    color: isDark ? 'white' : theme.palette.primary.dark,
+                    background: isDark ? 'transparent' : '#ffffff',
+                    '&:hover': { borderColor: isDark ? 'rgba(255,255,255,0.5)' : theme.palette.primary.main, background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff' }
                   }}
                 >
                   Batch Upload
                 </Button>
               </Box>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, rowGap: 1.4, maxWidth: 720 }}>
                 {[
                   { label: 'Real-time Detection', icon: <Security fontSize="small" /> },
-                  { label: 'ML-Powered Analytics', icon: <TrendingUp fontSize="small" /> },
-                  { label: 'Fast Processing', icon: <Speed fontSize="small" /> },
+                  { label: 'Explainable ML', icon: <TrendingUp fontSize="small" /> },
+                  { label: 'Sub‑100ms Scoring', icon: <Speed fontSize="small" /> },
                 ].map(b => (
                   <Chip
                     key={b.label}
                     icon={b.icon}
                     label={b.label}
                     sx={{
-                      px: 1.5,
-                      py: 0.5,
-                      background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-                      color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)',
+                      px: 1.4,
+                      height: 40,
+                      background: isDark ? 'rgba(255,255,255,0.07)' : '#ffffff',
+                      color: isDark ? 'rgba(255,255,255,0.85)' : theme.palette.primary.dark,
                       fontWeight: 500,
-                      border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.12)',
+                      border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.08)',
+                      boxShadow: isDark ? 'none' : '0 2px 6px -2px rgba(0,40,80,0.15)',
                       backdropFilter: 'blur(6px)'
                     }}
                   />
                 ))}
               </Box>
             </Box>
+            {/* Right Column: KPI Cards */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: { xs: '100%', lg: 360 } }}>
               {[{
                 title: 'Detection Accuracy', value: '99.8%', icon: <SecurityIcon />, color: '#06b6ff'
-              }, { title: 'Response Time', value: '<100ms', icon: <Speed />, color: '#10b981' }].map(card => (
+              }, { title: 'Median Response', value: '82ms', icon: <Speed />, color: '#10b981' }].map(card => (
                 <Paper key={card.title} elevation={0} sx={{
                   p: 4,
                   background: isDark
                     ? 'linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))'
-                    : 'linear-gradient(145deg,rgba(255,255,255,0.95),rgba(255,255,255,0.75))',
-                  border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                    : '#ffffff',
+                  border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.06)',
                   borderRadius: 3,
+                  boxShadow: isDark ? '0 6px 20px -6px rgba(0,0,0,0.5)' : '0 8px 20px -6px rgba(15,60,110,0.15)',
                   backdropFilter: 'blur(10px)'
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ width: 42, height: 42, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: card.color, color: '#fff', boxShadow: `0 6px 18px -4px ${card.color}aa` }}>{card.icon}</Box>
+                    <Box sx={{ width: 48, height: 48, borderRadius: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: card.color, color: '#fff', boxShadow: `0 6px 18px -4px ${card.color}aa` }}>{card.icon}</Box>
                     <Box>
-                      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>{card.value}</Typography>
-                      <Typography variant="body2" sx={{ opacity: isDark ? 0.7 : 0.9 }}>{card.title}</Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: 0.5, color: isDark ? '#fff' : theme.palette.primary.dark }}>{card.value}</Typography>
+                      <Typography variant="body2" sx={{ opacity: isDark ? 0.7 : 0.75 }}>{card.title}</Typography>
                     </Box>
                   </Box>
                 </Paper>
@@ -234,120 +265,64 @@ const Home: React.FC = () => {
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ mb: 8 }}>
+      {/* Main Content Wrapper with blended background */}
+      <Box sx={{
+        background: isDark
+          ? 'linear-gradient(180deg,#0d2238 0%, #0f1e2b 100%)'
+          : 'linear-gradient(180deg,#f4f9fc 0%, #ffffff 70%)',
+        pt: { xs: 6, md: 8 },
+        pb: { xs: 8, md: 10 }
+      }}>
+      <Container maxWidth="lg">
         {/* Features Overview */}
         <Box sx={{ mb: 6, textAlign: 'center' }}>
-          <Typography variant="h4" gutterBottom color="primary">
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, letterSpacing: '-0.5px' }} color="primary">
             Advanced Anomaly Detection Features
           </Typography>
-          <Typography variant="body1" sx={{ mb: 4, maxWidth: 700, mx: 'auto' }} color="text.secondary">
+          <Typography variant="body1" sx={{ mb: 4, maxWidth: 720, mx: 'auto', opacity: 0.85 }} color="text.secondary">
             SecureFlow uses state-of-the-art machine learning algorithms to detect and prevent suspicious transactions in real-time.
           </Typography>
+          <Divider sx={{ maxWidth: 160, mx: 'auto', mb: 4, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }} />
         </Box>
         
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 6 }}>
-          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ 
-                  backgroundColor: 'primary.light', 
-                  borderRadius: '50%', 
-                  width: 80, 
-                  height: 80, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mx: 'auto',
-                  mb: 2
-                }}>
-                  <Security sx={{ fontSize: 40, color: 'white' }} />
-                </Box>
-                <Typography variant="h6" gutterBottom fontWeight="bold">95% Accuracy</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  High precision anomaly detection using machine learning to reduce false positives
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ 
-                  backgroundColor: 'secondary.light', 
-                  borderRadius: '50%', 
-                  width: 80, 
-                  height: 80, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mx: 'auto',
-                  mb: 2
-                }}>
-                  <Speed sx={{ fontSize: 40, color: 'white' }} />
-                </Box>
-                <Typography variant="h6" gutterBottom fontWeight="bold">Real-time Analysis</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Process transactions in under 3 seconds with our high-performance system
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ 
-                  backgroundColor: 'success.light', 
-                  borderRadius: '50%', 
-                  width: 80, 
-                  height: 80, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mx: 'auto',
-                  mb: 2
-                }}>
-                  <TrendingUp sx={{ fontSize: 40, color: 'white' }} />
-                </Box>
-                <Typography variant="h6" gutterBottom fontWeight="bold">SHAP Explanations</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Transparent AI decisions with detailed factor analysis for each transaction
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' } }}>
-            <Card elevation={3} sx={{ height: '100%', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ 
-                  backgroundColor: 'error.light', 
-                  borderRadius: '50%', 
-                  width: 80, 
-                  height: 80, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mx: 'auto',
-                  mb: 2
-                }}>
-                  <TrendingDown sx={{ fontSize: 40, color: 'white' }} />
-                </Box>
-                <Typography variant="h6" gutterBottom fontWeight="bold">ML-Powered</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Advanced Isolation Forest and ensemble algorithms for anomaly detection
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 8 }}>
+          {[
+            { title: '95% Accuracy', icon: <Security sx={{ fontSize: 34 }} />, color: 'linear-gradient(135deg,#06b6ff,#0096ff)', desc: 'High precision anomaly detection using machine learning to reduce false positives' },
+            { title: 'Real-time Analysis', icon: <Speed sx={{ fontSize: 34 }} />, color: 'linear-gradient(135deg,#16c784,#0d9f63)', desc: 'Process transactions in under 3 seconds with our high-performance system' },
+            { title: 'SHAP Explanations', icon: <TrendingUp sx={{ fontSize: 34 }} />, color: 'linear-gradient(135deg,#6366f1,#4f46e5)', desc: 'Transparent ML decisions with detailed factor analysis for each transaction' },
+            { title: 'ML-Powered', icon: <TrendingDown sx={{ fontSize: 34 }} />, color: 'linear-gradient(135deg,#f43f5e,#e11d48)', desc: 'Advanced Isolation Forest and ensemble algorithms for anomaly detection' },
+          ].map(f => (
+            <Paper key={f.title} sx={{ ...surfaceStyles, flex: { xs: '1 1 100%', sm: '1 1 45%', md: '1 1 22%' }, p: 3, textAlign: 'center', position: 'relative', overflow: 'hidden', transition: 'transform .35s, box-shadow .35s', '&:hover': { transform: 'translateY(-6px)', boxShadow: isDark ? '0 10px 28px -6px rgba(0,0,0,0.65)' : '0 14px 32px -10px rgba(20,80,140,0.25)' } }}>
+              <Box sx={{
+                width: 78,
+                height: 78,
+                borderRadius: '50%',
+                mx: 'auto',
+                mb: 2.2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: f.color,
+                color: '#fff',
+                boxShadow: '0 8px 22px -8px rgba(0,0,0,0.35)'
+              }}>{f.icon}</Box>
+              <Typography variant="h6" fontWeight={700} gutterBottom>{f.title}</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.75 }}>{f.desc}</Typography>
+            </Paper>
+          ))}
         </Box>
 
-        <Typography variant="h4" textAlign="center" gutterBottom color="primary" sx={{ mt: 8, mb: 4 }}>
-          Test A Transaction
-        </Typography>
+        <Box sx={{ textAlign: 'center', mb: 5 }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }} color="primary">Test A Transaction</Typography>
+          <Typography variant="body2" sx={{ maxWidth: 640, mx: 'auto', opacity: 0.75 }}>
+            Simulate a transaction below to see real-time anomaly scoring and risk factor explanations.
+          </Typography>
+        </Box>
 
         {/* Transaction Input Form */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={0} sx={{ p: 3, ...surfaceStyles }}>
             <Typography variant="h5" gutterBottom>
               Analyze Transaction
             </Typography>
@@ -442,7 +417,7 @@ const Home: React.FC = () => {
 
         {/* Results */}
         <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 48%' } }}>
-          <Paper elevation={3} sx={{ p: 3, minHeight: '400px' }}>
+          <Paper elevation={0} sx={{ p: 3, minHeight: '400px', ...surfaceStyles }}>
             <Typography variant="h5" gutterBottom>
               Analysis Results
             </Typography>
@@ -544,6 +519,7 @@ const Home: React.FC = () => {
         </Box>
       </Box>
     </Container>
+    </Box>
     </>
   );
 };
