@@ -34,7 +34,7 @@ function AppContent() {
     <div className="App">
       {isAuthenticated && <Navbar />}
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={isAuthenticated ? <Home /> : <Login />} />
         <Route 
           path="/home" 
           element={

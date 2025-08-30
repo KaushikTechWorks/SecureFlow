@@ -22,7 +22,7 @@ COPY . .
 # Generate synthetic data on container start
 RUN python data_generator.py
 
-# Expose port
+ENV PORT=5001
 EXPOSE 5001
 
 # Create Lambda-like environment variables
@@ -34,5 +34,5 @@ ENV AWS_LAMBDA_FUNCTION_NAME=secureflow-api \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5001/api/health || exit 1
 
-# Start the application in Lambda-like environment
-CMD ["python", "start_server.py"]
+# Start the application with Gunicorn (production WSGI server)
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app", "--workers", "2", "--threads", "4", "--timeout", "120"]

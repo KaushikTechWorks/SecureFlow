@@ -60,7 +60,74 @@ class Feedback(Base):
 # Global variables for model and scaler
 model = None
 scaler = None
+_initialized = False
 feature_names = ['amount', 'hour', 'day_of_week', 'merchant_category', 'transaction_type']
+
+# ------------------------------
+# Input normalization utilities
+# ------------------------------
+def _stable_category_code(value: str, modulus: int = 10) -> int:
+    """Create a stable non-negative numeric code from a string for categorical hashing."""
+    if value is None:
+        return 0
+    return abs(hash(value)) % modulus
+
+def normalize_transaction_payload(raw: dict):
+    """Normalize incoming transaction JSON to required feature set.
+
+    Accepts either the full explicit schema (amount, hour, day_of_week, merchant_category, transaction_type)
+    OR a simplified/legacy schema: { amount, merchant, category, timestamp, type }.
+
+    Derivations:
+      - hour/day_of_week derived from timestamp (ISO8601) if missing.
+      - merchant_category derived by hashing (merchant or category) if merchant_category missing.
+      - transaction_type falls back to provided 'type' or 0.
+    """
+    data = dict(raw or {})
+
+    # Mandatory base field
+    if 'amount' not in data:
+        raise ValueError('Missing required field: amount')
+
+    # Derive hour / day_of_week from timestamp if not supplied directly
+    if ('hour' not in data or 'day_of_week' not in data) and 'timestamp' in data:
+        try:
+            ts = data['timestamp']
+            # Accept both with/without Z
+            dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            data.setdefault('hour', dt.hour)
+            data.setdefault('day_of_week', dt.weekday())
+        except Exception:
+            # If parsing fails leave for validation later
+            pass
+
+    # Map alternative field names
+    if 'merchant_category' not in data:
+        if 'category' in data:
+            data['merchant_category'] = _stable_category_code(str(data['category']))
+        elif 'merchant' in data:
+            data['merchant_category'] = _stable_category_code(str(data['merchant']))
+
+    if 'transaction_type' not in data:
+        if 'type' in data:
+            data['transaction_type'] = _stable_category_code(str(data['type']), modulus=3)
+        else:
+            data['transaction_type'] = 0
+
+    # Final validation of required model features
+    missing = [f for f in feature_names if f not in data]
+    if missing:
+        raise ValueError(f"Missing required field(s): {', '.join(missing)}")
+
+    # Coerce types
+    normalized = {
+        'amount': float(data['amount']),
+        'hour': int(data['hour']),
+        'day_of_week': int(data['day_of_week']),
+        'merchant_category': int(data['merchant_category']),
+        'transaction_type': int(data['transaction_type'])
+    }
+    return normalized
 
 def init_model():
     """Initialize the Isolation Forest model with synthetic data"""
@@ -113,6 +180,35 @@ def init_database():
         logger.error(f"Error creating database tables: {e}")
         raise
 
+def ensure_initialized():
+    """Lazily initialize model and database (for Gunicorn workers)."""
+    global _initialized
+    if _initialized:
+        return
+    try:
+        if (model is None) or (scaler is None):
+            logger.info("Lazy initializing model and scaler...")
+            init_model()
+        # Always ensure tables exist
+        init_database()
+        _initialized = True
+        logger.info("Lazy initialization complete")
+    except Exception as e:
+        logger.error(f"Lazy initialization failed: {e}")
+        # Don't mark initialized so we can retry next request
+        raise
+
+@app.before_request
+def _lazy_before_request():
+    # Only initialize for API routes, skip static asset fetches
+    path = request.path
+    if path.startswith('/api/'):
+        try:
+            ensure_initialized()
+        except Exception:
+            # Let endpoint handle/log detailed error if needed
+            pass
+
 def get_db_session():
     """Get database session"""
     session = SessionLocal()
@@ -144,9 +240,16 @@ def get_shap_explanation(data_point):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    # Attempt lazy init if not yet done (non-fatal if it fails)
+    if not _initialized:
+        try:
+            ensure_initialized()
+        except Exception:
+            pass
     return jsonify({
         'status': 'healthy',
         'model_loaded': model is not None,
+        'initialized': _initialized,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -170,22 +273,14 @@ def serve_frontend(path):
 def predict_anomaly():
     """Predict if a single transaction is anomalous"""
     try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['amount', 'hour', 'day_of_week', 'merchant_category', 'transaction_type']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Prepare data for prediction
-        transaction_data = pd.DataFrame([{
-            'amount': float(data['amount']),
-            'hour': int(data['hour']),
-            'day_of_week': int(data['day_of_week']),
-            'merchant_category': int(data['merchant_category']),
-            'transaction_type': int(data['transaction_type'])
-        }])
+        raw = request.get_json()
+        try:
+            normalized = normalize_transaction_payload(raw)
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
+
+        # Prepare dataframe for prediction
+        transaction_data = pd.DataFrame([normalized])
         
         # Scale the data
         X_scaled = scaler.transform(transaction_data[feature_names])
@@ -245,34 +340,15 @@ def predict_batch():
         
         for i, transaction in enumerate(transactions):
             try:
-                # Validate transaction data
-                required_fields = ['amount', 'hour', 'day_of_week', 'merchant_category', 'transaction_type']
-                for field in required_fields:
-                    if field not in transaction:
-                        results.append({
-                            'index': i,
-                            'error': f'Missing required field: {field}'
-                        })
-                        continue
-                
-                # Prepare data
-                transaction_data = pd.DataFrame([{
-                    'amount': float(transaction['amount']),
-                    'hour': int(transaction['hour']),
-                    'day_of_week': int(transaction['day_of_week']),
-                    'merchant_category': int(transaction['merchant_category']),
-                    'transaction_type': int(transaction['transaction_type'])
-                }])
-                
-                # Scale and predict
+                normalized = normalize_transaction_payload(transaction)
+                transaction_data = pd.DataFrame([normalized])
+
                 X_scaled = scaler.transform(transaction_data[feature_names])
                 anomaly_score = model.decision_function(X_scaled)[0]
                 is_anomaly = model.predict(X_scaled)[0] == -1
-                
-                # Get SHAP explanation
+
                 shap_explanation = get_shap_explanation(X_scaled[0])
-                
-                # Store in database
+
                 session = get_db_session()
                 try:
                     transaction_record = Transaction(
@@ -290,7 +366,7 @@ def predict_batch():
                     transaction_id = transaction_record.id
                 finally:
                     session.close()
-                
+
                 results.append({
                     'index': i,
                     'transaction_id': transaction_id,
@@ -299,12 +375,8 @@ def predict_batch():
                     'confidence': abs(float(anomaly_score)),
                     'shap_explanation': shap_explanation
                 })
-                
             except Exception as e:
-                results.append({
-                    'index': i,
-                    'error': str(e)
-                })
+                results.append({'index': i, 'error': str(e)})
         
         return jsonify({
             'results': results,

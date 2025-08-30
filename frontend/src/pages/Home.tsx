@@ -21,10 +21,8 @@ import { TrendingUp, TrendingDown, Security, Speed } from '@mui/icons-material';
 import SecurityIcon from '@mui/icons-material/Security';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
-import AnimatedBackground from '../components/AnimatedBackground';
-import GlassCard from '../components/GlassCard';
-import EnhancedButton from '../components/EnhancedButton';
 import ParticleBackground from '../components/ParticleBackground';
+import { useTheme } from '@mui/material/styles';
 
 interface PredictionResult {
   is_fraudulent: boolean;
@@ -73,8 +71,9 @@ const Home: React.FC = () => {
         amount: parseFloat(formData.amount),
         hour: parseInt(formData.hour),
         day_of_week: parseInt(formData.day_of_week),
-        merchant_category: merchantCategories[parseInt(formData.merchant_category)].toLowerCase(),
-        transaction_type: transactionTypes[parseInt(formData.transaction_type)].toLowerCase(),
+        // Use numeric hashed-like codes expected by backend normalization
+        merchant_category: parseInt(formData.merchant_category),
+        transaction_type: parseInt(formData.transaction_type),
       };
 
       const response = await axios.post(API_CONFIG.ENDPOINTS.PREDICT, payload);
@@ -115,147 +114,121 @@ const Home: React.FC = () => {
       }));
   };
 
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <>
-      {/* Hero Section */}
-      <Box 
-        sx={{ 
-          backgroundColor: 'primary.main',
-          color: 'white',
-          pt: 8,
-          pb: 8,
-          mb: 6,
-          backgroundImage: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
-          clipPath: 'polygon(0 0, 100% 0, 100% 85%, 0 100%)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <ParticleBackground particleCount={25} />
+      {/* New Hero Section */}
+      <Box sx={{
+        background: isDark
+          ? 'linear-gradient(145deg,#06121f 0%, #0d2238 60%, #16324d 100%)'
+          : 'linear-gradient(145deg,#f5fbff 0%, #eaf5ff 60%, #e1f0fa 100%)',
+        color: isDark ? 'white' : theme.palette.text.primary,
+        pt: { xs: 10, md: 12 },
+        pb: { xs: 9, md: 11 },
+        position: 'relative',
+        overflow: 'hidden',
+        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
+      }}>
+        <ParticleBackground particleCount={55} speed={0.6} />
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center' }}>
-            <Box sx={{ flex: 1, pr: { md: 4 }, mb: { xs: 4, md: 0 } }}>
-              <Typography 
-                variant="h2" 
-                gutterBottom 
-                fontWeight="bold"
-                className="fade-in-up"
-                sx={{ 
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                }}
-              >
-                Secure Your Financial Transactions
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 8 }}>
+            <Box sx={{ flex: 1, maxWidth: 740 }}>
+              <Typography variant="h2" sx={{ fontWeight: 700, mb: 3, lineHeight: 1.05 }}>
+                <Box component="span" sx={{
+                  background: isDark
+                    ? 'linear-gradient(90deg,#06b6ff,#00d5ff)'
+                    : 'linear-gradient(90deg,#0072e6,#00b4ff)',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent'
+                }}>Enterprise Risk<br />Management</Box>
               </Typography>
-              <Typography 
-                variant="h5" 
-                sx={{ mb: 4, opacity: 0.9 }} 
-                fontWeight="normal"
-                className="fade-in-up"
-              >
-                Advanced machine learning detection with 95% accuracy and real-time alerts
+              <Typography variant="h6" sx={{ mb: 5, fontWeight: 400, color: isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.65)', maxWidth: 640 }}>
+                Advanced ML-powered risk detection with real-time analysis. Protect your transactions with enterprise-grade security technology.
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <EnhancedButton 
-                  variant="glow"
-                  size="large" 
-                  component={RouterLink} 
-                  to="/batch"
-                  glowColor="#ffffff"
-                  sx={{ 
-                    px: 4, 
-                    py: 1.5,
-                    fontSize: '1.1rem',
-                    backgroundColor: 'white',
-                    color: 'primary.dark',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                    }
-                  }}
-                >
-                  Try Batch Upload
-                </EnhancedButton>
-                <Button 
-                  variant="outlined" 
-                  size="large" 
-                  component={RouterLink} 
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
+                <Button
+                  component={RouterLink}
                   to="/dashboard"
-                  sx={{ 
-                    px: 4, 
-                    py: 1.5,
-                    fontSize: '1.1rem',
-                    borderColor: 'white',
-                    color: 'white',
-                    '&:hover': {
-                      borderColor: 'white',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                    }
+                  variant="contained"
+                  size="large"
+                  sx={{
+                    px: 4,
+                    py: 1.6,
+                    fontSize: '1.05rem',
+                    fontWeight: 600,
+                    background: isDark ? 'linear-gradient(90deg,#0096ff,#00c0ff)' : 'linear-gradient(90deg,#007be6,#00b7ff)',
+                    boxShadow: isDark ? '0 10px 24px -6px rgba(0,150,255,0.45)' : '0 6px 16px -4px rgba(0,123,230,0.35)',
+                    '&:hover': { background: isDark ? 'linear-gradient(90deg,#0088e6,#00afd9)' : 'linear-gradient(90deg,#006dcc,#00a9e6)' }
                   }}
                 >
                   View Dashboard
                 </Button>
+                <Button
+                  component={RouterLink}
+                  to="/batch"
+                  variant="outlined"
+                  size="large"
+                  sx={{
+                    px: 4,
+                    py: 1.6,
+                    fontSize: '1.05rem',
+                    fontWeight: 600,
+                    borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
+                    color: isDark ? 'white' : theme.palette.text.primary,
+                    background: isDark ? 'transparent' : 'rgba(255,255,255,0.6)',
+                    '&:hover': { borderColor: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.85)' }
+                  }}
+                >
+                  Batch Upload
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                {[
+                  { label: 'Real-time Detection', icon: <Security fontSize="small" /> },
+                  { label: 'ML-Powered Analytics', icon: <TrendingUp fontSize="small" /> },
+                  { label: 'Fast Processing', icon: <Speed fontSize="small" /> },
+                ].map(b => (
+                  <Chip
+                    key={b.label}
+                    icon={b.icon}
+                    label={b.label}
+                    sx={{
+                      px: 1.5,
+                      py: 0.5,
+                      background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+                      color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)',
+                      fontWeight: 500,
+                      border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.12)',
+                      backdropFilter: 'blur(6px)'
+                    }}
+                  />
+                ))}
               </Box>
             </Box>
-            <Box sx={{ 
-              flex: 1, 
-              maxWidth: { xs: '100%', md: '50%' }, 
-              display: 'flex', 
-              justifyContent: 'center',
-              position: 'relative'
-            }}>
-              <Box sx={{
-                width: '100%',
-                maxWidth: 500,
-                height: 300,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: 4,
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                p: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                boxShadow: '0px 20px 40px rgba(0,0,0,0.2)'
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <SecurityIcon sx={{ fontSize: 36, mr: 2 }} />
-                  <Typography variant="h5">Real-time Protection</Typography>
-                </Box>
-                <Box sx={{ 
-                  height: 10, 
-                  width: '100%', 
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  borderRadius: 5,
-                  mb: 3,
-                  position: 'relative',
-                  overflow: 'hidden'
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: { xs: '100%', lg: 360 } }}>
+              {[{
+                title: 'Detection Accuracy', value: '99.8%', icon: <SecurityIcon />, color: '#06b6ff'
+              }, { title: 'Response Time', value: '<100ms', icon: <Speed />, color: '#10b981' }].map(card => (
+                <Paper key={card.title} elevation={0} sx={{
+                  p: 4,
+                  background: isDark
+                    ? 'linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))'
+                    : 'linear-gradient(145deg,rgba(255,255,255,0.95),rgba(255,255,255,0.75))',
+                  border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: 3,
+                  backdropFilter: 'blur(10px)'
                 }}>
-                  <Box sx={{ 
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: '100%',
-                    width: '95%',
-                    backgroundColor: 'secondary.main',
-                    borderRadius: 5
-                  }} />
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                  <Typography>Transaction Security Score</Typography>
-                  <Typography fontWeight="bold">95%</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Chip 
-                    icon={<TrendingUp />} 
-                    label="ACTIVE PROTECTION" 
-                    sx={{ 
-                      bgcolor: 'rgba(255,255,255,0.2)', 
-                      color: 'white',
-                      fontWeight: 'bold'
-                    }} 
-                  />
-                  <Typography variant="body2">Last scan: Just now</Typography>
-                </Box>
-              </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ width: 42, height: 42, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: card.color, color: '#fff', boxShadow: `0 6px 18px -4px ${card.color}aa` }}>{card.icon}</Box>
+                    <Box>
+                      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>{card.value}</Typography>
+                      <Typography variant="body2" sx={{ opacity: isDark ? 0.7 : 0.9 }}>{card.title}</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
             </Box>
           </Box>
         </Container>

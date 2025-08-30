@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS transactions (
+  id SERIAL PRIMARY KEY,
+  amount DECIMAL(10,2) NOT NULL,
+  merchant VARCHAR(255) NOT NULL,
+  category VARCHAR(100),
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_fraudulent BOOLEAN,
+  risk_score DECIMAL(4,3),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS feedback (
+  id SERIAL PRIMARY KEY,
+  transaction_id INTEGER REFERENCES transactions(id),
+  feedback_type VARCHAR(50) NOT NULL,
+  comment TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS analytics (
+  id SERIAL PRIMARY KEY,
+  metric_name VARCHAR(100) NOT NULL,
+  metric_value DECIMAL(10,2),
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
