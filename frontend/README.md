@@ -1,8 +1,37 @@
-# Getting Started with Create React App
+# SecureFlow Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is the React frontend for SecureFlow, a financial transaction anomaly detection system.
 
-## Available Scripts
+## 🚀 Quick Start
+
+### Development
+```bash
+npm install
+npm start
+```
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+
+### Production Build
+```bash
+npm run build
+```
+Builds the app for production to the `build` folder.
+
+### Deployment to Fly.io
+```bash
+flyctl deploy --app secureflow
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+- `REACT_APP_API_URL` - Backend API URL (defaults to `https://secureflow-backend.fly.dev`)
+
+### Development vs Production
+- **Development**: API calls go to `http://localhost:5001` (local backend)
+- **Production**: API calls go to `https://secureflow-backend.fly.dev` (Fly.io backend)
+
+## 📦 Available Scripts
 
 In the project directory, you can run:
 

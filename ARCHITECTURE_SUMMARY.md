@@ -1,16 +1,29 @@
-# SecureFlow Architecture Migration Summary
+# SecureFlow Architecture Evolution Summary
 
-## ✅ **Cleanup Complete - ECS Architecture Removed**
+## ✅ **Current Architecture - Fly.io Deployment**
 
-### **Removed Files/Configurations:**
-- ❌ All ECS task definitions (`ecs-task-definition*.json`)
-- ❌ Docker Compose production files (`docker-compose.yml`, `docker-compose-ssl.yml`)
-- ❌ Container orchestration files (`apprunner.yaml`, `app-runner-service.json`)
-- ❌ ECS CloudFormation templates (`infrastructure-ecs-backup.yml`)
-- ❌ Load balancer configurations (`nginx-ssl.conf`)
-- ❌ Old database migration docs (`DYNAMODB_FIX.md`, `LAMBDA_TEST_RESULTS.md`)
+### **Architecture Migration Timeline:**
+1. **Initial**: ECS/Docker Compose architecture ❌ (Removed - Too complex)
+2. **Previous**: AWS Lambda + API Gateway architecture 📋 (See AWS_DEPLOYMENT.md)
+3. **Current**: Fly.io containerized deployment ✅ (Active)
 
-### **Current Clean Architecture:**
+### **Current Production Architecture (Fly.io):**
+
+```
+┌─────────────────┐    ┌──────────────────┐
+│   Fly.io Edge   │────│  secureflow      │  Frontend
+│  (Global CDN)   │    │ (React + Nginx)  │
+└─────────────────┘    └──────────────────┘
+         │
+         │ /api/* routes → proxy
+         ▼
+┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│ secureflow-     │────│   Flask API      │────│  Fly Postgres    │  Backend
+│ backend.fly.dev │    │ (ML + Business)  │    │   (Managed DB)   │
+└─────────────────┘    └──────────────────┘    └──────────────────┘
+```
+
+### **Previous AWS Architecture (Legacy):**
 
 ```
 ┌─────────────────┐    ┌──────────────────┐
@@ -25,6 +38,18 @@
 │  (REST API)     │    │  (Business Logic)│    │   (Database)     │
 └─────────────────┘    └──────────────────┘    └──────────────────┘
 ```
+
+### **Current Deployment Details:**
+- **Frontend**: `secureflow.fly.dev` - React app served by Nginx with API proxying
+- **Backend**: `secureflow-backend.fly.dev` - Flask API with IsolationForest ML model
+- **Database**: Fly Postgres - Managed PostgreSQL cluster
+
+### **Why We Chose Fly.io Over AWS:**
+- **Simpler Deployment**: Single `flyctl deploy` vs complex CloudFormation
+- **Better Dev/Prod Parity**: Same Docker containers locally and in production
+- **Reduced Complexity**: No API Gateway, Lambda packaging, or S3 bucket configs
+- **Lower Costs**: Straightforward pricing without serverless complexity
+- **Easier Debugging**: Direct container access and simpler log aggregation
 
 ### **Current File Structure:**
 ```

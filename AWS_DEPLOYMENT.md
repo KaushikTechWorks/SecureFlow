@@ -1,10 +1,31 @@
-# SecureFlow AWS Deployment Guide
+# SecureFlow AWS Deployment Guide (Previous Architecture)
 
-This guide covers deploying SecureFlow using the modern serverless architecture:
+> **📋 ARCHITECTURE STATUS: Previous/Legacy**  
+> **Current deployment uses Fly.io. See README.md for current deployment instructions.**  
+> **This document is preserved for historical reference and potential future AWS deployments.**
+
+---
+
+This guide covers deploying SecureFlow using the previous AWS serverless architecture:
 - **Frontend**: CloudFront + S3 (Static Website)
 - **Backend**: Lambda + API Gateway + PostgreSQL RDS
 
-## Architecture Overview
+## Why We Migrated from AWS to Fly.io
+
+The AWS architecture was replaced with Fly.io containerized deployment for:
+- Simplified deployment process
+- Better development/production parity with Docker
+- Reduced infrastructure complexity
+- Lower operational overhead
+- Easier local testing and debugging
+
+For current deployment instructions, please refer to:
+- `README.md` - Main deployment guide  
+- `FLY_CURRENT_ARCHITECTURE.md` - Current architecture details
+
+---
+
+## Previous AWS Architecture
 
 ```
 Internet → CloudFront → S3 (Frontend)

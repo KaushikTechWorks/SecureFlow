@@ -13,10 +13,14 @@ SecureFlow empowers banks and users to detect suspicious financial transactions 
 
 ## 🏗️ Architecture
 
-### Production Architecture (AWS Serverless)
+### Production Architecture (Fly.io)
 ```
-Internet → CloudFront (CDN) → S3 (React Frontend)
-                           → API Gateway → Lambda (Python) → PostgreSQL RDS
+Internet → Fly Global Edge Network → Frontend App (secureflow)
+                                    Container: nginx + React build
+                                    Proxy: /api/* → Backend App
+                                  → Backend App (secureflow-backend)
+                                    Container: Python Flask + Gunicorn
+                                  → Fly Postgres Cluster (Managed HA)
 ```
 
 ### Local Development
@@ -25,10 +29,10 @@ Frontend (React) → Backend (Flask) → PostgreSQL (Docker)
 ```
 
 **Key Benefits:**
-- ✅ **Serverless**: Auto-scaling, no server management
-- ✅ **Global**: CloudFront edge locations for fast delivery
-- ✅ **Cost-effective**: Pay only for usage
-- ✅ **Secure**: VPC isolation, encryption, IAM roles
+- ✅ **Global Edge**: Fly's global edge network for fast delivery
+- ✅ **Simplified Deployment**: Single command deployments with flyctl
+- ✅ **Cost-effective**: Pay only for usage, auto-scale to zero
+- ✅ **Developer Experience**: Near-instant builds and deployments
 
 ## 🚀 Quick Start
 
@@ -53,20 +57,26 @@ Frontend (React) → Backend (Flask) → PostgreSQL (Docker)
    curl http://localhost:5001/api/health
    ```
 
-### Production Deployment (AWS)
+### Production Deployment (Fly.io)
 
-**Single command deployment:**
+**Deploy backend:**
 ```bash
-./scripts/deploy-to-aws.sh
+cd backend
+flyctl deploy --app secureflow-backend
 ```
 
-This creates:
-- S3 bucket + CloudFront for frontend
-- API Gateway + Lambda for backend
-- PostgreSQL RDS for database
-- All security groups and IAM roles
+**Deploy frontend:**
+```bash
+cd frontend  
+flyctl deploy --app secureflow
+```
 
-📖 **Detailed deployment guide**: [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md)
+**Production URLs:**
+- Frontend: https://secureflow.fly.dev
+- Backend API: https://secureflow-backend.fly.dev
+
+📖 **Detailed deployment guide**: [FLY_CURRENT_ARCHITECTURE.md](FLY_CURRENT_ARCHITECTURE.md)  
+📖 **Previous AWS architecture**: [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) (Legacy reference)
 
 ## 📋 Features
 
@@ -123,13 +133,14 @@ This creates:
 - **SQLAlchemy** for database ORM
 - **PostgreSQL** for data storage
 
-### Infrastructure
-- **AWS Lambda** - Serverless compute
-- **API Gateway** - REST API endpoints
-- **CloudFront** - Global CDN
-- **S3** - Static website hosting
-- **PostgreSQL RDS** - Managed database
-- **CloudFormation** - Infrastructure as code
+### Infrastructure (Current: Fly.io)
+- **Fly.io Apps** - Container-based hosting
+- **Fly Global Edge Network** - Global routing and caching
+- **Fly Postgres** - Managed PostgreSQL database
+- **Docker** - Containerized deployments
+- **nginx** - Frontend static file serving and API proxying
+
+*Previous architecture used AWS Lambda + API Gateway + CloudFront (see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for reference)*
 
 ### Development
 - **Docker** - Local development environment

@@ -1,8 +1,21 @@
-# SecureFlow Lambda Backend
+# SecureFlow Lambda Backend (Previous Architecture)
 
-This directory contains the unified SecureFlow backend that works both as an AWS Lambda function and as a local Flask development server.
+> **📋 STATUS: Legacy/Reference**  
+> **These files are preserved for historical reference.**  
+> **Current production deployment uses Fly.io Flask backend (see ../backend/ directory).**
 
-## Files
+This directory contains the AWS Lambda implementation of the SecureFlow backend that was used in the previous AWS architecture.
+
+## Migration Note
+
+The Lambda-based backend was replaced with a containerized Flask backend on Fly.io for:
+- Better development/production parity
+- Simplified deployment process  
+- Easier debugging and logging
+- No cold start latency
+- More predictable performance
+
+## Files (Legacy)
 
 - **`app.py`** - Main application code (unified for Lambda and local)
 - **`requirements.txt`** - Main requirements file with production dependencies
