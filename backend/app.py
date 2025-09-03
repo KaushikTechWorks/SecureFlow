@@ -403,24 +403,46 @@ def submit_feedback():
         # Store feedback
         session = get_db_session()
         try:
-            feedback_record = Feedback(
-                transaction_id=transaction_id,
-                user_feedback=feedback
-            )
-            session.add(feedback_record)
-            session.commit()
+            # First check if the transaction exists
+            transaction = session.query(Transaction).filter(Transaction.id == transaction_id).first()
+            if not transaction:
+                return jsonify({
+                    'error': f'Transaction ID {transaction_id} not found. Please ensure you are using a valid transaction ID from a recent analysis.'
+                }), 404
+            
+            # Check if feedback already exists for this transaction
+            existing_feedback = session.query(Feedback).filter(Feedback.transaction_id == transaction_id).first()
+            if existing_feedback:
+                # Update existing feedback instead of creating new one
+                existing_feedback.user_feedback = feedback
+                existing_feedback.timestamp = datetime.utcnow()
+                session.commit()
+                return jsonify({
+                    'message': 'Feedback updated successfully',
+                    'transaction_id': transaction_id,
+                    'feedback': feedback
+                })
+            else:
+                # Create new feedback record
+                feedback_record = Feedback(
+                    transaction_id=transaction_id,
+                    user_feedback=feedback
+                )
+                session.add(feedback_record)
+                session.commit()
+                return jsonify({
+                    'message': 'Feedback submitted successfully',
+                    'transaction_id': transaction_id,
+                    'feedback': feedback
+                })
         finally:
             session.close()
         
-        return jsonify({
-            'message': 'Feedback submitted successfully',
-            'transaction_id': transaction_id,
-            'feedback': feedback
-        })
-        
+    except ValueError:
+        return jsonify({'error': 'Transaction ID must be a valid number'}), 400
     except Exception as e:
         logger.error(f"Error submitting feedback: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'An error occurred while submitting feedback. Please try again.'}), 500
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():

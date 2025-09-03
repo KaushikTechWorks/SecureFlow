@@ -103,14 +103,15 @@ const Feedback: React.FC = () => {
       });
       
       let errorMessage = 'Failed to submit feedback. Please try again.';
-      if (error.response?.data?.message) {
-        errorMessage = `Error: ${error.response.data.message}`;
+      if (error.response?.data?.error) {
+        // Use the specific error message from the backend
+        errorMessage = error.response.data.error;
       } else if (error.response?.status === 404) {
-        errorMessage = 'Feedback endpoint not found. Please check your connection.';
+        errorMessage = 'Transaction not found. Please check the Transaction ID and try again.';
       } else if (error.response?.status >= 500) {
         errorMessage = 'Server error. Please try again later.';
       } else if (error.message === 'Network Error') {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = 'Unable to connect to the server. Please check your connection and try again.';
       }
       
       setError(errorMessage);
@@ -176,10 +177,10 @@ const Feedback: React.FC = () => {
                   required
                   type="number"
                   sx={{ mb: 4 }}
-                  helperText="Enter the transaction ID from the analysis results"
+                  helperText="Enter the transaction ID from a recent analysis. Analyze a transaction first to get a valid ID."
                   InputProps={{
                     endAdornment: (
-                      <Tooltip title="You can find the Transaction ID in your analysis results">
+                      <Tooltip title="Analyze a transaction on the Home page or Batch Upload page to get a valid Transaction ID">
                         <IconButton size="small">
                           <Help fontSize="small" />
                         </IconButton>
