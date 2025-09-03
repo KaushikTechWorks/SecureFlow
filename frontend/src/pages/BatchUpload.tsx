@@ -34,13 +34,13 @@ const transactionTypes = ['Purchase', 'Withdrawal', 'Transfer'];
 
 interface BatchResult {
   transaction_id: string;
-  is_fraudulent: boolean;
-  confidence: number;
-  risk_factors: {
-    high_amount: boolean;
-    unusual_time: boolean;
-    risky_category: boolean;
+  is_anomaly: boolean;
+  anomaly_score: number;
+  confidence?: number; // Backend returns both
+  shap_explanation: {
+    [key: string]: number;
   };
+  timestamp?: string;
 }
 
 interface BatchResponse {
@@ -114,6 +114,18 @@ const BatchUpload: React.FC = () => {
     return transactions;
   };
 
+  const getTopShapFeatures = (shapExplanation: { [key: string]: number }) => {
+    return Object.entries(shapExplanation)
+      .filter(([_, value]) => Math.abs(value) > 0.001)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0, 2) // Show top 2 features
+      .map(([feature, value]) => ({
+        feature: feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        value: value,
+        impact: value > 0 ? 'positive' : 'negative'
+      }));
+  };
+
   const handleUpload = async () => {
     if (!file) return;
 
@@ -159,7 +171,7 @@ const BatchUpload: React.FC = () => {
 
   const getAnomalyRate = () => {
     if (!results) return 0;
-    const anomalies = results.results.filter(r => r.is_fraudulent).length;
+    const anomalies = results.results.filter(r => r.is_anomaly).length;
     return (anomalies / results.results.length) * 100;
   };
 
@@ -435,8 +447,8 @@ const BatchUpload: React.FC = () => {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 'bold' }}>Index</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Risk Factors</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Confidence</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>SHAP Features</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Anomaly Score</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
                 </TableRow>
               </TableHead>
@@ -445,37 +457,36 @@ const BatchUpload: React.FC = () => {
                   <TableRow 
                     key={index} 
                     sx={{ 
-                      bgcolor: result.is_fraudulent ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
-                      '&:hover': { bgcolor: result.is_fraudulent ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
+                      bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
+                      '&:hover': { bgcolor: result.is_anomaly ? 'rgba(211, 47, 47, 0.08)' : 'rgba(0, 0, 0, 0.04)' }
                     }}
                   >
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       <Chip
-                        label={result.is_fraudulent ? 'Requires Review' : 'Approved'}
-                        color={result.is_fraudulent ? 'warning' : 'success'}
+                        label={result.is_anomaly ? 'Requires Review' : 'Approved'}
+                        color={result.is_anomaly ? 'warning' : 'success'}
                         size="small"
                         sx={{ fontWeight: 'medium' }}
                       />
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {result.risk_factors.high_amount && (
-                          <Chip label="High Amount" size="small" color="warning" />
-                        )}
-                        {result.risk_factors.unusual_time && (
-                          <Chip label="Unusual Time" size="small" color="warning" />
-                        )}
-                        {result.risk_factors.risky_category && (
-                          <Chip label="Risky Category" size="small" color="warning" />
-                        )}
-                        {!result.risk_factors.high_amount && !result.risk_factors.unusual_time && !result.risk_factors.risky_category && (
+                        {getTopShapFeatures(result.shap_explanation).map((feature, idx) => (
+                          <Chip 
+                            key={idx}
+                            label={`${feature.feature}: ${feature.value > 0 ? '+' : ''}${feature.value.toFixed(3)}`}
+                            size="small" 
+                            color={feature.value > 0 ? 'warning' : 'success'}
+                          />
+                        ))}
+                        {getTopShapFeatures(result.shap_explanation).length === 0 && (
                           <Typography variant="body2" color="text.secondary">None</Typography>
                         )}
                       </Box>
                     </TableCell>
                     <TableCell>
-                      {`${(result.confidence * 100).toFixed(1)}%`}
+                      {`${(result.anomaly_score * 100).toFixed(1)}%`}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>

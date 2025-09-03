@@ -24,15 +24,15 @@ import ParticleBackground from '../components/ParticleBackground';
 import { useTheme } from '@mui/material/styles';
 
 interface PredictionResult {
-  is_fraudulent: boolean;
-  confidence: number;
-  risk_factors: {
-    high_amount: boolean;
-    unusual_time: boolean;
-    risky_category: boolean;
+  is_anomaly: boolean;
+  anomaly_score: number;
+  confidence?: number; // Backend returns both
+  shap_explanation: {
+    [key: string]: number;
   };
-  data_source: string;
-  timestamp: string;
+  data_source?: string;
+  timestamp?: string;
+  transaction_id?: number;
 }
 
 const Home: React.FC = () => {
@@ -85,31 +85,21 @@ const Home: React.FC = () => {
   };
 
   const getShapExplanation = () => {
-    if (!result) return null;
+    if (!result || !result.shap_explanation) return null;
 
-    // Since our current API doesn't return SHAP explanations,
-    // we'll create a simple explanation based on risk factors
-    const factors: [string, number][] = [];
-    
-    if (result.risk_factors.high_amount) {
-      factors.push(['High Amount', 0.4]);
-    }
-    if (result.risk_factors.unusual_time) {
-      factors.push(['Unusual Time', 0.3]);
-    }
-    if (result.risk_factors.risky_category) {
-      factors.push(['Risky Category', 0.3]);
-    }
+    // Convert SHAP explanation object to sorted array of [feature, value] pairs
+    const factors: [string, number][] = Object.entries(result.shap_explanation)
+      .filter(([_, value]) => Math.abs(value) > 0.001) // Filter out very small values
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])) // Sort by absolute value
+      .slice(0, 3); // Take top 3 most important features
 
     if (factors.length === 0) return null;
 
     return factors
-      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-      .slice(0, 3)
       .map(([feature, value]) => ({
-        feature: feature,
+        feature: feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Format feature name
         value: value,
-        impact: value > 0 ? 'increases' : 'decreases',
+        impact: value > 0 ? 'positive' : 'negative'
       }));
   };
 
@@ -432,8 +422,8 @@ const Home: React.FC = () => {
               <Box>
                 <Box sx={{ mb: 3, textAlign: 'center' }}>
                   <Chip
-                    label={result.is_fraudulent ? 'TRANSACTION REQUIRES REVIEW' : 'TRANSACTION APPROVED'}
-                    color={result.is_fraudulent ? 'warning' : 'success'}
+                    label={result.is_anomaly ? 'TRANSACTION REQUIRES REVIEW' : 'TRANSACTION APPROVED'}
+                    color={result.is_anomaly ? 'warning' : 'success'}
                     size="medium"
                     sx={{ fontSize: '1rem', py: 2 }}
                   />
@@ -445,15 +435,15 @@ const Home: React.FC = () => {
                       Risk Level
                     </Typography>
                     <Typography variant="h6">
-                      {result.is_fraudulent ? 'Elevated Risk' : 'Low Risk'}
+                      {result.is_anomaly ? 'Elevated Risk' : 'Low Risk'}
                     </Typography>
                   </Box>
                   <Box sx={{ flex: '1 1 48%' }}>
                     <Typography variant="body2" color="text.secondary">
-                      Confidence
+                      Anomaly Score
                     </Typography>
                     <Typography variant="h6">
-                      {(result.confidence * 100).toFixed(1)}%
+                      {(result.anomaly_score * 100).toFixed(1)}%
                     </Typography>
                   </Box>
                 </Box>
@@ -479,31 +469,35 @@ const Home: React.FC = () => {
                 {/* Risk Factors Display */}
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="h6" gutterBottom>
-                    Risk Factor Analysis
+                    SHAP Feature Analysis
                   </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {result.risk_factors.high_amount && (
-                      <Chip label="High Amount" size="small" color="warning" />
-                    )}
-                    {result.risk_factors.unusual_time && (
-                      <Chip label="Unusual Time" size="small" color="warning" />
-                    )}
-                    {result.risk_factors.risky_category && (
-                      <Chip label="Risky Category" size="small" color="warning" />
-                    )}
-                    {!result.risk_factors.high_amount && !result.risk_factors.unusual_time && !result.risk_factors.risky_category && (
-                      <Typography variant="body2" color="text.secondary">No specific risk factors detected</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {getShapExplanation()?.map((factor, index) => (
+                      <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2">{factor.feature}</Typography>
+                        <Chip 
+                          label={`${factor.value > 0 ? '+' : ''}${factor.value.toFixed(3)}`}
+                          size="small" 
+                          color={factor.value > 0 ? 'warning' : 'success'}
+                        />
+                      </Box>
+                    )) || (
+                      <Typography variant="body2" color="text.secondary">No significant features detected</Typography>
                     )}
                   </Box>
                 </Box>
 
                 <Box sx={{ mt: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Data Source: {result.data_source}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Analyzed at: {new Date(result.timestamp).toLocaleString()}
-                  </Typography>
+                  {result.data_source && (
+                    <Typography variant="body2" color="text.secondary">
+                      Data Source: {result.data_source}
+                    </Typography>
+                  )}
+                  {result.timestamp && (
+                    <Typography variant="body2" color="text.secondary">
+                      Analyzed at: {new Date(result.timestamp).toLocaleString()}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             )}

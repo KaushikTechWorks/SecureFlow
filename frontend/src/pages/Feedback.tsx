@@ -30,7 +30,8 @@ import {
   Analytics,
   TrendingUp,
   Timeline,
-  BugReport
+  BugReport,
+  CheckCircle
 } from '@mui/icons-material';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
@@ -80,6 +81,9 @@ const Feedback: React.FC = () => {
         comments: formData.comments || undefined,
       };
 
+      console.log('Submitting feedback to:', API_CONFIG.ENDPOINTS.FEEDBACK);
+      console.log('Submission data:', submission);
+
       const response = await axios.post(API_CONFIG.ENDPOINTS.FEEDBACK, submission);
       console.log('Feedback submitted successfully:', response.data);
       
@@ -89,9 +93,27 @@ const Feedback: React.FC = () => {
         user_feedback: 'correct',
         comments: '',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting feedback:', error);
-      setError('Failed to submit feedback. Please try again.');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config?.url
+      });
+      
+      let errorMessage = 'Failed to submit feedback. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = `Error: ${error.response.data.message}`;
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Feedback endpoint not found. Please check your connection.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -259,8 +281,19 @@ const Feedback: React.FC = () => {
                 )}
 
                 {success && (
-                  <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
-                    {success}
+                  <Alert 
+                    severity="success" 
+                    sx={{ mb: 3, borderRadius: 2 }}
+                    icon={<CheckCircle />}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                        Feedback Received!
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {success}
+                    </Typography>
                   </Alert>
                 )}
 
