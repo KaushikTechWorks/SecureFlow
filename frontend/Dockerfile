@@ -11,8 +11,8 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
-# Accept build argument for API URL - default to AWS API Gateway URL
-ARG REACT_APP_API_URL=https://pp6mtqf9qj.execute-api.us-east-1.amazonaws.com/prod
+# Accept build argument for API URL - default to Fly.io backend URL
+ARG REACT_APP_API_URL=https://secureflow-backend.fly.dev
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # Build the application with cache busting enabled
