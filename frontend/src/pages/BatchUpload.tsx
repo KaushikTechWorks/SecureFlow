@@ -39,7 +39,7 @@ interface BatchResult {
   confidence?: number; // Backend returns both
   shap_explanation: {
     [key: string]: number;
-  };
+  } | null | undefined;
   timestamp?: string;
 }
 
@@ -91,11 +91,9 @@ const BatchUpload: React.FC = () => {
           if (header === 'amount') {
             transaction[header] = parseFloat(value);
           } else if (header === 'merchant_category') {
-            const categoryIndex = parseInt(value);
-            transaction[header] = merchantCategories[categoryIndex]?.toLowerCase() || 'other';
+            transaction[header] = parseInt(value); // Keep as numeric index
           } else if (header === 'transaction_type') {
-            const typeIndex = parseInt(value);
-            transaction[header] = transactionTypes[typeIndex]?.toLowerCase() || 'purchase';
+            transaction[header] = parseInt(value); // Keep as numeric index
           } else {
             transaction[header] = parseInt(value);
           }
@@ -108,7 +106,11 @@ const BatchUpload: React.FC = () => {
     return transactions;
   };
 
-  const getTopShapFeatures = (shapExplanation: { [key: string]: number }) => {
+  const getTopShapFeatures = (shapExplanation: { [key: string]: number } | null | undefined) => {
+    if (!shapExplanation || typeof shapExplanation !== 'object') {
+      return [];
+    }
+    
     return Object.entries(shapExplanation)
       .filter(([_, value]) => Math.abs(value) > 0.001)
       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
@@ -480,7 +482,7 @@ const BatchUpload: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      {`${(result.anomaly_score * 100).toFixed(1)}%`}
+                      {isNaN(result.anomaly_score) ? 'N/A' : `${(result.anomaly_score * 100).toFixed(1)}%`}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
