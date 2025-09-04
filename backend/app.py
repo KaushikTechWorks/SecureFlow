@@ -7,13 +7,15 @@ from sklearn.preprocessing import StandardScaler
 import shap
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from sqlalchemy import create_engine, Column, Integer, Float, Boolean, String, DateTime, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+import time
+from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,9 +24,15 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration
+# Database configuration with connection pooling
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/secureflow')
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_recycle=3600
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -33,15 +41,15 @@ class Transaction(Base):
     __tablename__ = 'transactions'
     
     id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Float, nullable=False)
-    hour = Column(Integer, nullable=False)
+    amount = Column(Float, nullable=False, index=True)  # Index for performance
+    hour = Column(Integer, nullable=False, index=True)  # Index for hourly queries
     day_of_week = Column(Integer, nullable=False)
     merchant_category = Column(Integer, nullable=False)
     transaction_type = Column(Integer, nullable=False)
     anomaly_score = Column(Float, nullable=False)
-    is_anomaly = Column(Boolean, nullable=False)
+    is_anomaly = Column(Boolean, nullable=False, index=True)  # Index for anomaly queries
     shap_explanation = Column(String, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)  # Index for time-based queries
     
     # Relationship to feedback
     feedback = relationship("Feedback", back_populates="transaction")
@@ -62,6 +70,11 @@ model = None
 scaler = None
 _initialized = False
 feature_names = ['amount', 'hour', 'day_of_week', 'merchant_category', 'transaction_type']
+
+# Dashboard cache
+_dashboard_cache = None
+_dashboard_cache_time = None
+DASHBOARD_CACHE_DURATION = 30  # seconds
 
 # ------------------------------
 # Input normalization utilities
@@ -129,9 +142,20 @@ def normalize_transaction_payload(raw: dict):
     }
     return normalized
 
+def ensure_model_initialized():
+    """Ensure model is initialized, initialize if not"""
+    global _initialized
+    if not _initialized:
+        logger.info("Initializing model for first use...")
+        init_model()
+        logger.info("Model initialization complete")
+
 def init_model():
     """Initialize the Isolation Forest model with synthetic data"""
-    global model, scaler
+    global model, scaler, _initialized
+    
+    if _initialized:
+        return
     
     # Generate synthetic training data
     np.random.seed(42)
@@ -168,6 +192,9 @@ def init_model():
     
     model = IsolationForest(contamination=0.1, random_state=42, n_estimators=100)
     model.fit(X_scaled)
+    
+    _initialized = True
+    logger.info("Model initialized successfully")
     
     logger.info("Model initialized successfully")
 
@@ -239,8 +266,76 @@ def get_shap_explanation(data_point):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    # Attempt lazy init if not yet done (non-fatal if it fails)
+    """Health check endpoint with model pre-loading"""
+    try:
+        # Ensure model is initialized for faster subsequent requests
+        ensure_model_initialized()
+        
+        # Test database connection
+        session = get_db_session()
+        try:
+            session.execute(text('SELECT 1'))
+            db_status = 'connected'
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+        finally:
+            session.close()
+        
+        return jsonify({
+            'status': 'healthy',
+            'model_initialized': _initialized,
+            'database': db_status,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+
+@app.route('/api/warmup', methods=['POST'])
+def warmup():
+    """Warm up endpoint to pre-load model and cache"""
+    try:
+        start_time = time.time()
+        
+        # Initialize model
+        ensure_model_initialized()
+        
+        # Pre-load dashboard cache
+        get_dashboard_data()
+        
+        # Test a prediction to warm up the prediction pipeline
+        test_data = {
+            'amount': 100.0,
+            'hour': 14,
+            'day_of_week': 1,
+            'merchant_category': 5,
+            'transaction_type': 1
+        }
+        
+        normalized = normalize_transaction_payload(test_data)
+        data_array = np.array([[normalized[f] for f in feature_names]])
+        X_scaled = scaler.transform(data_array)
+        model.decision_function(X_scaled)
+        
+        warmup_time = time.time() - start_time
+        
+        return jsonify({
+            'status': 'warmed_up',
+            'warmup_time_seconds': round(warmup_time, 3),
+            'model_initialized': _initialized,
+            'dashboard_cached': _dashboard_cache is not None,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'warmup_failed',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
     if not _initialized:
         try:
             ensure_initialized()
@@ -446,39 +541,50 @@ def submit_feedback():
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
-    """Get dashboard analytics data"""
+    """Get dashboard analytics data with caching"""
+    global _dashboard_cache, _dashboard_cache_time
+    
     try:
+        # Check if we have fresh cached data
+        current_time = time.time()
+        if (_dashboard_cache is not None and 
+            _dashboard_cache_time is not None and 
+            current_time - _dashboard_cache_time < DASHBOARD_CACHE_DURATION):
+            return jsonify(_dashboard_cache)
+        
+        # Ensure model is initialized
+        ensure_model_initialized()
+        
         session = get_db_session()
         try:
-            # Get recent transactions stats
-            from sqlalchemy import func, and_
-            from datetime import datetime, timedelta
+            # Use simplified queries for better compatibility
+            from sqlalchemy import func, case
             
             week_ago = datetime.utcnow() - timedelta(days=7)
             
-            # Get stats
+            # Main stats query
             stats_query = session.query(
                 func.count(Transaction.id).label('total_transactions'),
-                func.sum(func.cast(Transaction.is_anomaly, Integer)).label('anomalies_detected'),
+                func.sum(case((Transaction.is_anomaly == True, 1), else_=0)).label('anomalies_detected'),
                 func.avg(Transaction.anomaly_score).label('avg_anomaly_score')
             ).filter(Transaction.timestamp >= week_ago).first()
             
-            # Get hourly distribution
+            # Separate hourly distribution query
             hourly_query = session.query(
                 Transaction.hour,
                 func.count(Transaction.id).label('count'),
-                func.sum(func.cast(Transaction.is_anomaly, Integer)).label('anomalies')
+                func.sum(case((Transaction.is_anomaly == True, 1), else_=0)).label('anomalies')
             ).filter(Transaction.timestamp >= week_ago)\
              .group_by(Transaction.hour)\
              .order_by(Transaction.hour).all()
             
-            # Get feedback stats
+            # Feedback query
             feedback_query = session.query(
                 func.count(Feedback.id).label('total_feedback'),
-                func.sum(func.cast(Feedback.user_feedback, Integer)).label('positive_feedback')
+                func.sum(case((Feedback.user_feedback == True, 1), else_=0)).label('positive_feedback')
             ).join(Transaction).filter(Transaction.timestamp >= week_ago).first()
             
-            # Ensure all values are properly converted to Python native types
+            # Build response with proper type conversion
             total_transactions = int(stats_query.total_transactions) if stats_query.total_transactions else 0
             anomalies_detected = int(stats_query.anomalies_detected) if stats_query.anomalies_detected else 0
             avg_anomaly_score = float(stats_query.avg_anomaly_score) if stats_query.avg_anomaly_score else 0.0
@@ -487,8 +593,8 @@ def get_dashboard_data():
                 'stats': {
                     'total_transactions': total_transactions,
                     'anomalies_detected': anomalies_detected,
-                    'avg_anomaly_score': avg_anomaly_score,
-                    'anomaly_rate': float((anomalies_detected / total_transactions * 100)) if total_transactions > 0 else 0.0
+                    'avg_anomaly_score': round(avg_anomaly_score, 3),
+                    'anomaly_rate': round((anomalies_detected / total_transactions * 100), 2) if total_transactions > 0 else 0.0
                 },
                 'hourly_distribution': [
                     {
@@ -500,16 +606,33 @@ def get_dashboard_data():
                 'feedback': {
                     'total_feedback': int(feedback_query.total_feedback) if feedback_query.total_feedback else 0,
                     'positive_feedback': int(feedback_query.positive_feedback) if feedback_query.positive_feedback else 0,
-                    'accuracy': float((feedback_query.positive_feedback / feedback_query.total_feedback * 100)) if feedback_query.total_feedback and feedback_query.total_feedback > 0 else 0.0
-                }
+                    'accuracy': round((feedback_query.positive_feedback / feedback_query.total_feedback * 100), 2) if feedback_query.total_feedback and feedback_query.total_feedback > 0 else 0.0
+                },
+                'cached': False,
+                'generated_at': datetime.utcnow().isoformat()
             }
             
+            # Cache the response
+            _dashboard_cache = response.copy()
+            _dashboard_cache['cached'] = True
+            _dashboard_cache_time = current_time
+            
             return jsonify(response)
+            
         finally:
             session.close()
         
     except Exception as e:
         logger.error(f"Error getting dashboard data: {e}")
+        
+        # Return cached data if available, even if stale
+        if _dashboard_cache is not None:
+            logger.info("Returning stale cached dashboard data due to error")
+            stale_response = _dashboard_cache.copy()
+            stale_response['cached'] = True
+            stale_response['stale'] = True
+            return jsonify(stale_response)
+        
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/transactions', methods=['GET'])

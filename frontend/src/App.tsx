@@ -7,6 +7,7 @@ import './App.css';
 // Theme Context
 import { CustomThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { warmupBackend } from './config/api';
 
 // Components
 import Navbar from './components/Navbar';
@@ -16,12 +17,22 @@ import Home from './pages/Home';
 import BatchUpload from './pages/BatchUpload';
 import Dashboard from './pages/Dashboard';
 import Feedback from './pages/Feedback';
+
 // Inner App component that uses the theme and auth
 function AppContent() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
+    // Warm up the backend on app startup (non-blocking)
+    warmupBackend().then(success => {
+      if (success) {
+        console.log('✅ Backend warmed up successfully');
+      } else {
+        console.log('⚠️ Backend warmup failed, but app will continue normally');
+      }
+    });
+
     // Check if we have a redirect path from the 404.html page
     const redirectPath = sessionStorage.getItem('redirectPath');
     if (redirectPath) {

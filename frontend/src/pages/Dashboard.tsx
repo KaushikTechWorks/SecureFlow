@@ -73,10 +73,10 @@ const DashboardComponent: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 60 seconds (increased from 30 to reduce server load)
     const interval = setInterval(() => {
       fetchDashboardData(true);
-    }, 30000);
+    }, 60000);
     
     return () => clearInterval(interval);
   }, []);
@@ -90,11 +90,23 @@ const DashboardComponent: React.FC = () => {
       }
       setError(null);
       
-      const response = await axios.get(API_CONFIG.ENDPOINTS.DASHBOARD);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await axios.get(API_CONFIG.ENDPOINTS.DASHBOARD, {
+        signal: controller.signal,
+        timeout: 10000
+      });
+      
+      clearTimeout(timeoutId);
       setData(response.data);
       setLastUpdated(new Date());
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch dashboard data');
+      if (err.name === 'AbortError') {
+        setError('Dashboard loading timed out. Please try again.');
+      } else {
+        setError(err.response?.data?.error || 'Failed to fetch dashboard data');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

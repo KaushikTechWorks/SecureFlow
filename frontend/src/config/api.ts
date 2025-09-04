@@ -10,5 +10,30 @@ export const API_CONFIG = {
     FEEDBACK: `${API_BASE_URL}/api/feedback`,
     DASHBOARD: `${API_BASE_URL}/api/dashboard`,
     TRANSACTIONS: `${API_BASE_URL}/api/transactions`,
+    WARMUP: `${API_BASE_URL}/api/warmup`,
+  }
+};
+
+// API warmup utility
+export const warmupBackend = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(API_CONFIG.ENDPOINTS.WARMUP, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Backend warmed up successfully:', data);
+      return true;
+    } else {
+      console.warn('Backend warmup failed:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.warn('Backend warmup error:', error);
+    return false;
   }
 };
