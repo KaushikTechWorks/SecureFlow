@@ -45,13 +45,7 @@ interface BatchResult {
 
 interface BatchResponse {
   results: BatchResult[];
-  batch_summary: {
-    total_transactions: number;
-    successful_predictions: number;
-    fraudulent_detected: number; // API field - represents transactions requiring review
-    fraud_rate: number; // API field - represents review rate
-  };
-  data_source: string;
+  total_processed: number;
   timestamp: string;
 }
 
@@ -406,7 +400,7 @@ const BatchUpload: React.FC = () => {
               <Typography variant="body2" color="text.secondary">
                 Total Processed
               </Typography>                <Typography variant="h4" fontWeight="bold">
-                  {results.batch_summary.total_transactions}
+                  {results.total_processed}
                 </Typography>
             </Box>
             
@@ -421,7 +415,7 @@ const BatchUpload: React.FC = () => {
               <Typography variant="body2" color="text.secondary">
                 Anomalies Detected
               </Typography>                <Typography variant="h4" fontWeight="bold" color="error.main">
-                  {results.batch_summary.fraudulent_detected}
+                  {results.results.filter(r => r.is_anomaly).length}
                 </Typography>
             </Box>
             
